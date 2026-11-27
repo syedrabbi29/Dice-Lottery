@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import quote
@@ -39,7 +39,7 @@ PLACE_NAMES = ["1st", "2nd", "3rd"]
 TIERS = {
     "A": {
         "emoji": "🎟",
-        "name": {"en": "Classic", "bn": "ক্লাসিক"},
+        "name": {"en": "Classic", "bn": "ক্লাসিক", "zh": "经典", "hi": "क्लासिक"},
         "fee": Decimal("0.05"),
         "prizes": [Decimal("0.150"), Decimal("0.080"), Decimal("0.055")],
         "house": Decimal("0.015"),
@@ -47,7 +47,7 @@ TIERS = {
     },
     "B": {
         "emoji": "💎",
-        "name": {"en": "Premium", "bn": "প্রিমিয়াম"},
+        "name": {"en": "Premium", "bn": "প্রিমিয়াম", "zh": "尊享", "hi": "प्रीमियम"},
         "fee": Decimal("0.50"),
         "prizes": [Decimal("1.50"), Decimal("0.80"), Decimal("0.55")],
         "house": Decimal("0.15"),
@@ -89,6 +89,13 @@ KEEP_ROUNDS = 500                    # finished rounds kept in the database
 
 UTC = timezone.utc
 BDT = timezone(timedelta(hours=6))
+LANGS = [("en", "English 🇬🇧"), ("bn", "বাংলা 🇧🇩"), ("zh", "中文 🇨🇳"), ("hi", "हिन्दी 🇮🇳")]
+LANG_TZ = {
+    "en": (UTC, "UTC"),
+    "bn": (BDT, "BDT"),
+    "zh": (timezone(timedelta(hours=8)), "CST"),
+    "hi": (timezone(timedelta(hours=5, minutes=30)), "IST"),
+}
 SEP = "━━━━━━━━━━━━━━━━━━"
 NUMBER_EMOJI = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣"]
 
@@ -143,7 +150,7 @@ BOT_USERNAME = ""
 
 TEXT = {
     "en": {
-        "lang_prompt": "🌐 Choose your language / ভাষা বাছাই করুন",
+        "lang_prompt": "🌐 Choose your language / ভাষা বাছাই করুন / 选择语言 / भाषा चुनें",
         "lang_set": "✅ Language set to English.",
         "btn_join": "🎟 Join Lottery",
         "btn_tickets": "📜 Transactions",
@@ -231,7 +238,7 @@ TEXT = {
         "wd_fail": "❌ <b>Withdrawal failed.</b>\n{amount} USDT was returned to your balance.\n💳 Balance: <b>{bal} USDT</b>",
     },
     "bn": {
-        "lang_prompt": "🌐 Choose your language / ভাষা বাছাই করুন",
+        "lang_prompt": "🌐 Choose your language / ভাষা বাছাই করুন / 选择语言 / भाषा चुनें",
         "lang_set": "✅ ভাষা বাংলা সেট করা হয়েছে।",
         "btn_join": "🎟 লটারিতে জয়েন করুন",
         "btn_tickets": "📜 লেনদেন",
@@ -406,6 +413,282 @@ TEXT_EXTRA2 = {
 TEXT["en"].update(TEXT_EXTRA2["en"])
 TEXT["bn"].update(TEXT_EXTRA2["bn"])
 
+TEXT_EXTRA3 = {
+    "en": {
+        "ban_dm": "🚫 <b>Your account has been restricted</b>\nYou can no longer use this bot. If you think this is a mistake, please contact the admin.",
+        "unban_dm": "✅ <b>Your account is active again</b>\nThe restriction has been lifted and you can use the bot as usual. Tap /menu to continue.",
+        "strike_warn": "⚠️ <b>Warning</b>\nYou have reserved numbers <b>{n}</b> times in a row without paying.\nIf this happens <b>once more</b>, joining lotteries will be paused for <b>{hours} hours</b>.\n\nOnly reserve a number if you are ready to pay now. Continue?",
+        "btn_continue": "✅ Continue",
+    },
+    "bn": {
+        "ban_dm": "🚫 <b>আপনার অ্যাকাউন্ট সীমাবদ্ধ করা হয়েছে</b>\nআপনি আর এই বট ব্যবহার করতে পারবেন না। কোনো ভুল মনে হলে অ্যাডমিনের সাথে যোগাযোগ করুন।",
+        "unban_dm": "✅ <b>আপনার অ্যাকাউন্ট আবার চালু হয়েছে</b>\nসীমাবদ্ধতা তুলে নেওয়া হয়েছে, আপনি আগের মতো বট ব্যবহার করতে পারবেন। চালিয়ে যেতে /menu চাপুন।",
+        "strike_warn": "⚠️ <b>সতর্কতা</b>\nআপনি টানা <b>{n}</b> বার নম্বর রিজার্ভ করে পেমেন্ট করেননি।\nআরও <b>একবার</b> এমন হলে <b>{hours} ঘণ্টা</b> লটারিতে জয়েন বন্ধ থাকবে।\n\nপেমেন্ট করতে প্রস্তুত থাকলেই নম্বর রিজার্ভ করুন। চালিয়ে যাবেন?",
+        "btn_continue": "✅ চালিয়ে যান",
+    },
+}
+TEXT["en"].update(TEXT_EXTRA3["en"])
+TEXT["bn"].update(TEXT_EXTRA3["bn"])
+
+
+TEXT_ZH = {
+    "lang_prompt": "🌐 Choose your language / ভাষা বাছাই করুন / 选择语言 / भाषा चुनें",
+    "lang_set": "✅ 语言已设置为简体中文。",
+    "btn_join": "🎟 参加抽奖",
+    "btn_tickets": "📜 交易记录",
+    "btn_withdraw": "💸 提现",
+    "btn_lang": "🌐 语言",
+    "btn_back": "⬅️ 返回菜单",
+    "btn_back_lot": "⬅️ 返回抽奖列表",
+    "btn_prev": "◀️ 上一页",
+    "btn_next": "下一页 ▶️",
+    "btn_yes_another": "✅ 是的，再买一张",
+    "btn_no": "❌ 否",
+    "btn_pay_x": "💸 使用 xRocket 支付",
+    "btn_pay_bal": "💰 使用余额支付（{bal} USDT）",
+    "btn_cancel": "❌ 取消",
+    "btn_pay_on": "💸 前往 xRocket 支付",
+    "btn_check": "🔄 检查付款",
+    "btn_show_user": "👤 显示 @{u}",
+    "btn_show_uid": "🔢 显示 UID {uid}",
+    "btn_confirm": "✅ 确认",
+    "btn_join_next": "🎟 参加下一轮",
+    "btn_continue": "✅ 继续",
+    "menu_body": "🎰 <b>幸运骰子抽奖</b>\n{sep}\n💰 您的余额：<b>{bal} USDT</b>\n{sep}\n🍀 <b>想试试手气吗？</b>\n选一个号码，在频道里观看骰子实时滚动，赢取真正的 USDT 奖金——每轮 <b>3 位</b>获奖者！\n\n🎲 公平  •  🔴 直播  •  💸 奖金直接进入您的余额\n\n点击下方的<b>参加抽奖</b>，查看当前正在进行的抽奖。\n{sep}\n📢 频道：{channel}",
+    "menu_paused": "⏸ 新一轮抽奖暂时暂停。",
+    "join_title": "🎰 <b>请选择抽奖</b>\n{sep}\n{rows}\n{sep}\n👇 点击您想参加的抽奖。",
+    "join_row": "{tname}\n   💵 参与费用：<b>{fee} USDT</b>\n   🏆 奖金：{prizes}\n   👥 玩家：<b>{n}/{slots}</b>  •  ⏳ 剩余 {left}",
+    "join_row_off": "{tname}\n   ⏳ 下一轮即将开始……",
+    "no_round": "⏳ 目前没有开放的抽奖，请稍后再试。",
+    "max_tickets": "⚠️ 您在本轮已持有最多 <b>{max}</b> 张票。",
+    "all_taken": "🔒 所有号码目前都已被占用或预留，请几分钟后再试。",
+    "already_hold": "⚠️ 您已持有号码：{held}\n多买一个号码可以增加中奖机会，但每张票需 <b>{fee} USDT</b>。\n\n是否继续？",
+    "pick_number": "<b>{tname} • 第 #{id} 轮</b> — 选择您的幸运号码\n💵 参与费用：<b>{fee} USDT</b>\n🏆 奖金：{prizes}\n⏳ 截止：{ends}\n\n可选号码：",
+    "reserved_msg": "✅ {tname}：号码 {emoji} <b>{num}</b> 已为您预留 <b>{mins} 分钟</b>。\n\n💵 参与费用：<b>{fee} USDT</b>\n请选择支付方式：",
+    "alert_closed": "本轮已结束。",
+    "alert_taken": "抱歉，这个号码刚刚被别人选走了。",
+    "alert_max": "每轮最多 {max} 张票。",
+    "alert_reserve_expired": "您的预留已过期，请重新选择号码。",
+    "alert_creating": "正在创建账单……",
+    "invoice_fail": "❌ 无法创建账单，请重试。",
+    "invoice_ready": "💸 <b>账单已生成</b>\n\n{tname}：号码 {emoji} <b>{num}</b> — <b>{fee} USDT</b>\n请在 <b>{mins} 分钟</b>内付款。付款后您的号码将自动确认。",
+    "alert_no_balance": "余额不足。",
+    "alert_paid_bal": "已用余额支付。",
+    "alert_cancelled": "已取消。",
+    "alert_processed": "该付款已处理。",
+    "alert_not_received": "⏳ 尚未收到付款。",
+    "entry_ok_choose": "🎉 <b>付款成功！</b>\n您的号码：{emoji} <b>{num}</b>（{tname} • 第 #{rid} 轮）\n👥 玩家：{total}/{slots}\n\n👇 <b>最后一步</b> — 您的名字在频道帖子中如何显示？\n⏳ 完成此步骤后才算成功参加（若不选择，将在 {wait} 分钟后自动选择）。",
+    "entry_ok_nouser": "🎉 <b>付款成功！</b>\n您的号码已确认：{emoji} <b>{num}</b>（{tname} • 第 #{rid} 轮）\n👥 玩家：{total}/{slots}\n\n您没有 Telegram 用户名，因此帖子中将显示您的 UID。\n✅ 您已成功参加！",
+    "name_done": "✅ 完成！号码 {emoji} <b>{num}</b> 将显示为 <b>{shown}</b>。\n🎟 您已成功参加！",
+    "alert_saved": "已保存！",
+    "alert_ticket_missing": "未找到该号码。",
+    "alert_round_done": "本轮已结束。",
+    "alert_no_username": "您没有用户名。",
+    "late_refund": "⚠️ 您的付款已到账，但号码 <b>{num}</b> 已不可用（本轮已结束或号码被占用）。\n💰 <b>{fee} USDT</b> 已添加到您的余额。",
+    "round_closed_dm": "⌛ <b>{tname} • 第 #{rid} 轮已关闭</b>\n24 小时内参与人数不足。\n💰 <b>{amount} USDT</b> 已退还到您的余额。\n您可以用它参加下一轮。",
+    "win_dm": "🎉 <b>恭喜！</b>\n您在 {tname} • 第 #{rid} 轮中获奖：\n{wins}\n💰 <b>{prize} USDT</b> 已添加到您的余额。\n💳 新余额：<b>{bal} USDT</b>",
+    "lose_dm": "🎲 {tname} • 第 #{rid} 轮已结束。\n获奖者：\n{winners}\n祝您下次好运！🍀",
+    "one_left_dm": "⏳ {tname} • 第 #{rid} 轮仅剩 <b>1 个名额</b>！满员后将立即开始直播抽奖。",
+    "hist_title": "📜 <b>您的交易记录</b>\n{sep}\n{rows}\n{sep}\n📄 第 {page}/{pages} 页",
+    "hist_empty": "📜 您还没有任何交易记录。",
+    "hist_ticket": "🎟 <b>{tname}</b> • 第 #{rid} 轮 • 号码 {emoji}\n   ➖ {amount} USDT（{method}）\n   {status}\n   🕒 {time}",
+    "hist_win": "🏆 <b>中奖</b> — {tname} • 第 #{rid} 轮 • 号码 {emoji}\n   ➕ {amount} USDT\n   🕒 {time}",
+    "hist_refund": "↩️ <b>退款</b> — {tname} • 第 #{rid} 轮已关闭\n   ➕ {amount} USDT\n   🕒 {time}",
+    "hist_late": "↩️ <b>迟到付款退款</b>\n   ➕ {amount} USDT\n   🕒 {time}",
+    "hist_withdraw": "💸 <b>提现</b>\n   ➖ {amount} USDT\n   {status}\n   🕒 {time}",
+    "hist_other": "🧾 {kind}: {amount} USDT\n   🕒 {time}",
+    "method_bal": "余额",
+    "method_x": "xRocket",
+    "st_ongoing": "🟢 进行中",
+    "st_end": "🏁 已结束",
+    "st_win": "🏆 中奖",
+    "st_closed": "🏁 已结束（已退款）",
+    "st_wd_done": "✅ 已完成",
+    "st_wd_pending": "⏳ 处理中",
+    "st_wd_failed": "❌ 失败（已退款）",
+    "wd_ask": "💸 您想提现多少 USDT？\n请发送一个数字（最低 {minwd} USDT）。\n发送 /menu 取消。",
+    "wd_bad_number": "❌ 请只发送数字，例如 0.05",
+    "wd_bad_dec": "❌ 小数最多 3 位，例如 0.055",
+    "wd_min": "❌ 最低提现金额为 {minwd} USDT。",
+    "wd_nobal": "❌ 余额不足。您的余额为 {bal} USDT。",
+    "wd_confirm": "💸 <b>提现 {amount} USDT</b>\n收款账户：您的 xRocket 钱包\n\n确认吗？",
+    "alert_wd_min": "最低提现金额为 {minwd} USDT。",
+    "alert_session": "会话已过期，请重新开始。",
+    "wd_processing": "⏳ 正在处理您的提现……",
+    "wd_failed_api": "❌ 提现失败：{reason}\n💳 余额已恢复：<b>{bal} USDT</b>",
+    "wd_pending": "⏳ xRocket 正在处理，完成后我会通知您。",
+    "wd_ok": "✅ <b>提现成功！</b>\n{amount} USDT 已发送到您的 xRocket 钱包。\n💳 余额：<b>{bal} USDT</b>",
+    "wd_fail": "❌ <b>提现失败。</b>\n{amount} USDT 已退回您的余额。\n💳 余额：<b>{bal} USDT</b>",
+    "btn_ref": "👥 推荐",
+    "btn_guide": "📖 指南",
+    "btn_share": "📤 分享我的链接",
+    "btn_back_guide": "⬅️ 返回指南",
+    "gb_join": "🎟 如何参加",
+    "gb_draw": "🎲 如何选出获奖者",
+    "gb_prizes": "🏆 抽奖与奖金",
+    "gb_money": "💰 余额与提现",
+    "gb_refer": "👥 推荐赚钱",
+    "gb_faq": "❓ 常见问题",
+    "ref_page": "👥 <b>推荐赚钱</b>\n{sep}\n🔗 <b>您的专属链接</b>\n<code>{link}</code>\n{sep}\n💸 您推荐的用户每买一张票，您就能获得票价的 <b>{pct}%</b>——在该轮<b>结束后</b>加入您的余额。\n\n🎟 经典票（{fee_a} USDT）→ <b>{ca} USDT</b>\n💎 尊享票（{fee_b} USDT）→ <b>{cb} USDT</b>\n{sep}\n📊 <b>您的数据</b>\n👥 推荐总人数：<b>{n}</b>\n💰 总收入：<b>{income} USDT</b>\n🎟 被推荐用户购买的票数：<b>{tickets}</b>\n⏳ 进行中的轮次：<b>{ptk}</b> 张票（轮次结束后约 <b>{pinc} USDT</b>）\n{sep}\n{refnote}",
+    "ref_note": "ℹ️ 佣金按通过 xRocket 支付的票计算。已关闭并退款的轮次不发放佣金。",
+    "ref_off": "\n⏸ 推荐奖励目前已关闭。",
+    "ref_share_text": "🎰 幸运骰子抽奖——通过我的链接加入，选号码，在直播骰子抽奖中赢取 USDT！",
+    "ref_new": "🎉 <b>新的推荐！</b>\n{name} 通过您的链接加入了。",
+    "ref_paid_dm": "💰 <b>推荐奖励！</b>\n{tname} • 第 #{rid} 轮已结束。\n🎟 被推荐用户购买的票数：{tickets}\n➕ <b>{amount} USDT</b> 已添加到您的余额。\n💳 余额：<b>{bal} USDT</b>",
+    "hist_ref": "👥 <b>推荐奖励</b> — {tname} • 第 #{rid} 轮\n   ➕ {amount} USDT\n   🕒 {time}",
+    "guide_menu": "📖 <b>指南</b>\n{sep}\n了解我们抽奖的全部玩法。请选择一个主题：",
+    "guide_join": "🎟 <b>如何参加</b>\n{sep}\n1️⃣ 点击<b>参加抽奖</b>，选择<b>经典</b>或<b>尊享</b>。\n2️⃣ 选择一个空闲的幸运号码（1–{slots}），将为您预留 <b>{mins} 分钟</b>。\n3️⃣ 使用 <b>xRocket</b> 或您的<b>机器人余额</b>支付。\n4️⃣ 选择名字在频道帖子中的显示方式（@用户名或 ID）。<b>完成此步骤后才算成功参加。</b>\n\n🎟 每轮最多可持有 <b>{max}</b> 张票——票越多，机会越大。\n⏳ 每一轮开放 24 小时。",
+    "guide_draw": "🎲 <b>如何选出获奖者</b>\n{sep}\n当 {slots} 个号码全部被占用，且每位玩家都完成了名字选择后，频道里会出现简短的 1️⃣2️⃣3️⃣ 倒计时。随后骰子会<b>实时</b>滚动：\n\n🥇 第 1 个骰子 → 该号码为第 1 名\n🥈 第 2 个骰子 → 该号码为第 2 名\n🥉 第 3 个骰子 → 该号码为第 3 名\n\n♻️ 同一号码不能中奖两次。如果再次出现相同号码，将重新掷骰子。\n✅ 骰子为 Telegram 官方骰子，并在 {channel} 公开掷出，全程透明。\n⏳ 如果两个抽奖同时满员，将依次开奖。",
+    "guide_prizes": "🏆 <b>抽奖与奖金</b>\n{sep}\n🎟 <b>经典</b> — 参与费用 <b>{fee_a} USDT</b>\n{prizes_a}\n\n💎 <b>尊享</b> — 参与费用 <b>{fee_b} USDT</b>\n{prizes_b}\n\n🏆 每轮 3 位获奖者。开奖后奖金立即加入您的机器人余额。\n⌛ 如果一轮在 24 小时内未满员，将被关闭，所有票款退还到您的余额。\n🔁 两个抽奖同时进行，您可以两个都参加。",
+    "guide_money": "💰 <b>余额与提现</b>\n{sep}\n💳 您的余额包含奖金、退款和推荐奖励。\n🎟 您可以用余额购买票。\n\n💸 <b>提现</b>\n点击提现，发送金额（最低 <b>{minwd} USDT</b>，最多 3 位小数）并确认。款项将发送到您的 xRocket 钱包。\n\n📜 <b>交易记录</b>\n每一张票、中奖、退款、推荐奖励和提现都会连同状态列在那里：\n🟢 进行中  •  🏁 已结束  •  🏆 中奖",
+    "guide_refer": "👥 <b>推荐赚钱</b>\n{sep}\n1️⃣ 点击<b>推荐</b>，复制您的专属链接。\n2️⃣ 朋友通过您的链接启动机器人，就成为您的推荐用户。\n3️⃣ 他们每买一张票，您就能获得 <b>{pct}%</b>——在<b>该轮结束后</b>发放。\n\n🎟 经典票 → <b>{ca} USDT</b>\n💎 尊享票 → <b>{cb} USDT</b>\n\n📊 推荐页面会显示推荐总人数、总收入、被推荐用户购买的票数，以及仍在进行中的轮次里的票数。\n{refnote}",
+    "guide_faq": "❓ <b>常见问题</b>\n{sep}\n<b>我的付款到账晚了？</b>\n如果这期间号码已被占用或本轮已关闭，票款会加入您的余额。\n\n<b>这一轮没有满员？</b>\n24 小时后该轮关闭，所有票款退还到您的余额。\n\n<b>我没有选择名字显示方式？</b>\n{wait} 分钟后会自动为您选择（有用户名则用 @用户名，否则用 ID）。\n\n<b>在哪里查看结果？</b>\n在 {channel} 频道和您的交易记录中。\n\n<b>可以两个抽奖都参加吗？</b>\n可以，经典和尊享同时进行。",
+    "wd_off": "⏸ 提现暂时暂停，请稍后再试。",
+    "wd_off_alert": "提现暂时暂停，请稍后再试。",
+    "wd_review": "🔍 <b>提现审核中</b>\n为了您的资金安全，这笔提现需要管理员进行一次人工检查。一有结果会立即通知您——无需重复提交。",
+    "wd_review_exists": "🔍 您已有一笔提现正在等待审核，请等待管理员的决定。",
+    "wd_approved": "✅ 管理员已批准您的提现。",
+    "wd_rejected": "❌ 您的提现申请未获批准，余额保持不变。如果您认为有误，请联系管理员。",
+    "banned": "🚫 <b>您的账户已被限制</b>\n您目前无法使用此机器人。如果您认为有误，请联系管理员。",
+    "banned_alert": "🚫 您的账户已被限制，请联系管理员。",
+    "strike_blocked": "⛔ <b>暂停参加</b>\n您已连续 {n} 次预留号码但未付款。参加抽奖将暂停 <b>{hours} 小时</b>。您的余额、提现和菜单仍可正常使用。",
+    "join_blocked": "⛔ <b>您暂时无法参加</b>\n您已连续多次预留号码但未付款。<b>{left}</b> 后可再次参加。您的余额、提现和菜单仍可正常使用。",
+    "ban_dm": "🚫 <b>您的账户已被限制</b>\n您无法再使用此机器人。如果您认为有误，请联系管理员。",
+    "unban_dm": "✅ <b>您的账户已恢复</b>\n限制已解除，您可以像往常一样使用机器人。点击 /menu 继续。",
+    "strike_warn": "⚠️ <b>警告</b>\n您已连续 <b>{n}</b> 次预留号码但未付款。\n如果<b>再发生一次</b>，参加抽奖将暂停 <b>{hours} 小时</b>。\n\n只有在准备好立即付款时才预留号码。是否继续？",
+}
+
+
+TEXT_HI = {
+    "lang_prompt": "🌐 Choose your language / ভাষা বাছাই করুন / 选择语言 / भाषा चुनें",
+    "lang_set": "✅ भाषा हिन्दी सेट कर दी गई है।",
+    "btn_join": "🎟 लॉटरी में शामिल हों",
+    "btn_tickets": "📜 लेन-देन",
+    "btn_withdraw": "💸 निकासी",
+    "btn_lang": "🌐 भाषा",
+    "btn_back": "⬅️ मेनू पर वापस",
+    "btn_back_lot": "⬅️ लॉटरी सूची पर वापस",
+    "btn_prev": "◀️ पिछला",
+    "btn_next": "अगला ▶️",
+    "btn_yes_another": "✅ हाँ, एक और लूँगा",
+    "btn_no": "❌ नहीं",
+    "btn_pay_x": "💸 xRocket से भुगतान करें",
+    "btn_pay_bal": "💰 बैलेंस से भुगतान ({bal} USDT)",
+    "btn_cancel": "❌ रद्द करें",
+    "btn_pay_on": "💸 xRocket पर भुगतान करें",
+    "btn_check": "🔄 भुगतान जाँचें",
+    "btn_show_user": "👤 @{u} दिखाएँ",
+    "btn_show_uid": "🔢 UID {uid} दिखाएँ",
+    "btn_confirm": "✅ पुष्टि करें",
+    "btn_join_next": "🎟 अगले राउंड में शामिल हों",
+    "btn_continue": "✅ जारी रखें",
+    "menu_body": "🎰 <b>लकी डाइस लॉटरी</b>\n{sep}\n💰 आपका बैलेंस: <b>{bal} USDT</b>\n{sep}\n🍀 <b>क्या किस्मत आज़माना चाहते हैं?</b>\nअपना नंबर चुनें, हमारे चैनल में लाइव डाइस रोल देखें और असली USDT इनाम जीतें — हर राउंड में <b>3 विजेता</b>!\n\n🎲 निष्पक्ष  •  🔴 लाइव  •  💸 इनाम सीधे आपके बैलेंस में\n\nअभी कौन-सी लॉटरी चल रही है यह देखने के लिए नीचे <b>लॉटरी में शामिल हों</b> दबाएँ।\n{sep}\n📢 चैनल: {channel}",
+    "menu_paused": "⏸ नए राउंड अभी के लिए रोके गए हैं।",
+    "join_title": "🎰 <b>अपनी लॉटरी चुनें</b>\n{sep}\n{rows}\n{sep}\n👇 जिस लॉटरी में शामिल होना है उसे दबाएँ।",
+    "join_row": "{tname}\n   💵 प्रवेश शुल्क: <b>{fee} USDT</b>\n   🏆 इनाम: {prizes}\n   👥 खिलाड़ी: <b>{n}/{slots}</b>  •  ⏳ {left} बाकी",
+    "join_row_off": "{tname}\n   ⏳ अगला राउंड जल्द शुरू हो रहा है...",
+    "no_round": "⏳ अभी कोई लॉटरी खुली नहीं है। कृपया थोड़ी देर बाद फिर कोशिश करें।",
+    "max_tickets": "⚠️ इस राउंड में आपके पास पहले से अधिकतम <b>{max}</b> टिकट हैं।",
+    "all_taken": "🔒 अभी सभी नंबर लिए जा चुके हैं या रिज़र्व हैं। कुछ मिनट बाद फिर कोशिश करें।",
+    "already_hold": "⚠️ आपके पास पहले से टिकट हैं: {held}\nएक और नंबर लेने से जीतने की संभावना बढ़ती है, लेकिन हर टिकट की कीमत <b>{fee} USDT</b> है।\n\nक्या आप जारी रखना चाहते हैं?",
+    "pick_number": "<b>{tname} • राउंड #{id}</b> — अपना लकी नंबर चुनें\n💵 प्रवेश शुल्क: <b>{fee} USDT</b>\n🏆 इनाम: {prizes}\n⏳ समाप्ति: {ends}\n\nखाली नंबर:",
+    "reserved_msg": "✅ {tname}: नंबर {emoji} <b>{num}</b> आपके लिए <b>{mins} मिनट</b> के लिए रिज़र्व है।\n\n💵 प्रवेश शुल्क: <b>{fee} USDT</b>\nभुगतान का तरीका चुनें:",
+    "alert_closed": "यह राउंड बंद हो चुका है।",
+    "alert_taken": "माफ़ करें, यह नंबर अभी-अभी किसी और ने ले लिया।",
+    "alert_max": "प्रति राउंड अधिकतम {max} टिकट।",
+    "alert_reserve_expired": "आपका रिज़र्वेशन समाप्त हो गया। कृपया फिर से नंबर चुनें।",
+    "alert_creating": "इनवॉइस बनाया जा रहा है...",
+    "invoice_fail": "❌ इनवॉइस नहीं बन सका। कृपया फिर कोशिश करें।",
+    "invoice_ready": "💸 <b>इनवॉइस तैयार है</b>\n\n{tname}: टिकट {emoji} <b>{num}</b> — <b>{fee} USDT</b>\n<b>{mins} मिनट</b> के भीतर भुगतान करें। भुगतान के बाद आपका टिकट अपने आप कन्फ़र्म हो जाएगा।",
+    "alert_no_balance": "बैलेंस पर्याप्त नहीं है।",
+    "alert_paid_bal": "बैलेंस से भुगतान हो गया।",
+    "alert_cancelled": "रद्द कर दिया गया।",
+    "alert_processed": "यह भुगतान पहले ही प्रोसेस हो चुका है।",
+    "alert_not_received": "⏳ भुगतान अभी नहीं मिला।",
+    "entry_ok_choose": "🎉 <b>भुगतान मिल गया!</b>\nआपका टिकट: {emoji} <b>{num}</b> ({tname} • राउंड #{rid})\n👥 खिलाड़ी: {total}/{slots}\n\n👇 <b>आख़िरी चरण</b> — चैनल पोस्ट में आपका नाम कैसे दिखे?\n⏳ इस चरण के बाद ही आपकी एंट्री पूरी होगी (न चुनने पर {wait} मिनट बाद अपने आप चुन लिया जाएगा)।",
+    "entry_ok_nouser": "🎉 <b>भुगतान मिल गया!</b>\nआपका टिकट कन्फ़र्म हो गया: {emoji} <b>{num}</b> ({tname} • राउंड #{rid})\n👥 खिलाड़ी: {total}/{slots}\n\nआपका Telegram username नहीं है, इसलिए पोस्ट में आपकी UID दिखाई जाएगी।\n✅ आपकी एंट्री पूरी हो गई!",
+    "name_done": "✅ हो गया! टिकट {emoji} <b>{num}</b> <b>{shown}</b> नाम से दिखेगा।\n🎟 आपकी एंट्री पूरी हो गई!",
+    "alert_saved": "सेव हो गया!",
+    "alert_ticket_missing": "टिकट नहीं मिला।",
+    "alert_round_done": "यह राउंड पहले ही समाप्त हो चुका है।",
+    "alert_no_username": "आपका username नहीं है।",
+    "late_refund": "⚠️ आपका भुगतान आ गया, लेकिन टिकट <b>{num}</b> अब उपलब्ध नहीं है (राउंड बंद हो गया या नंबर किसी और ने ले लिया)।\n💰 <b>{fee} USDT</b> आपके बैलेंस में जोड़ दिए गए हैं।",
+    "round_closed_dm": "⌛ <b>{tname} • राउंड #{rid} बंद हो गया</b>\n24 घंटे में पर्याप्त खिलाड़ी शामिल नहीं हुए।\n💰 <b>{amount} USDT</b> आपके बैलेंस में वापस कर दिए गए हैं।\nआप इन्हें अगले राउंड में इस्तेमाल कर सकते हैं।",
+    "win_dm": "🎉 <b>बधाई हो!</b>\nआपने {tname} • राउंड #{rid} में जीत हासिल की:\n{wins}\n💰 <b>{prize} USDT</b> आपके बैलेंस में जोड़ दिए गए हैं।\n💳 नया बैलेंस: <b>{bal} USDT</b>",
+    "lose_dm": "🎲 {tname} • राउंड #{rid} समाप्त हो गया।\nविजेता:\n{winners}\nअगली बार किस्मत साथ दे! 🍀",
+    "one_left_dm": "⏳ {tname} • राउंड #{rid} में सिर्फ़ <b>1 जगह</b> बाकी है! भरते ही लाइव ड्रॉ शुरू हो जाएगा।",
+    "hist_title": "📜 <b>आपके लेन-देन</b>\n{sep}\n{rows}\n{sep}\n📄 पेज {page}/{pages}",
+    "hist_empty": "📜 अभी तक आपका कोई लेन-देन नहीं है।",
+    "hist_ticket": "🎟 <b>{tname}</b> • राउंड #{rid} • टिकट {emoji}\n   ➖ {amount} USDT ({method})\n   {status}\n   🕒 {time}",
+    "hist_win": "🏆 <b>इनाम जीता</b> — {tname} • राउंड #{rid} • टिकट {emoji}\n   ➕ {amount} USDT\n   🕒 {time}",
+    "hist_refund": "↩️ <b>रिफ़ंड</b> — {tname} • राउंड #{rid} बंद हुआ\n   ➕ {amount} USDT\n   🕒 {time}",
+    "hist_late": "↩️ <b>देर से आए भुगतान का रिफ़ंड</b>\n   ➕ {amount} USDT\n   🕒 {time}",
+    "hist_withdraw": "💸 <b>निकासी</b>\n   ➖ {amount} USDT\n   {status}\n   🕒 {time}",
+    "hist_other": "🧾 {kind}: {amount} USDT\n   🕒 {time}",
+    "method_bal": "बैलेंस",
+    "method_x": "xRocket",
+    "st_ongoing": "🟢 जारी",
+    "st_end": "🏁 समाप्त",
+    "st_win": "🏆 जीत",
+    "st_closed": "🏁 समाप्त (रिफ़ंड हुआ)",
+    "st_wd_done": "✅ पूरा हुआ",
+    "st_wd_pending": "⏳ प्रोसेस हो रहा है",
+    "st_wd_failed": "❌ विफल (रिफ़ंड हुआ)",
+    "wd_ask": "💸 आप कितने USDT निकालना चाहते हैं?\nसिर्फ़ संख्या भेजें (न्यूनतम {minwd} USDT)।\nरद्द करने के लिए /menu भेजें।",
+    "wd_bad_number": "❌ कृपया सिर्फ़ संख्या भेजें, जैसे 0.05",
+    "wd_bad_dec": "❌ दशमलव के बाद अधिकतम 3 अंक रखें, जैसे 0.055",
+    "wd_min": "❌ न्यूनतम निकासी {minwd} USDT है।",
+    "wd_nobal": "❌ बैलेंस पर्याप्त नहीं है। आपके पास {bal} USDT हैं।",
+    "wd_confirm": "💸 <b>{amount} USDT की निकासी</b>\nगंतव्य: आपका xRocket वॉलेट\n\nपुष्टि करें?",
+    "alert_wd_min": "न्यूनतम निकासी {minwd} USDT है।",
+    "alert_session": "सेशन समाप्त हो गया। कृपया फिर से शुरू करें।",
+    "wd_processing": "⏳ आपकी निकासी प्रोसेस हो रही है...",
+    "wd_failed_api": "❌ निकासी विफल: {reason}\n💳 बैलेंस वापस मिल गया: <b>{bal} USDT</b>",
+    "wd_pending": "⏳ xRocket इसे प्रोसेस कर रहा है। पूरा होते ही मैं आपको बताऊँगा।",
+    "wd_ok": "✅ <b>निकासी सफल!</b>\n{amount} USDT आपके xRocket वॉलेट में भेज दिए गए हैं।\n💳 बैलेंस: <b>{bal} USDT</b>",
+    "wd_fail": "❌ <b>निकासी विफल।</b>\n{amount} USDT आपके बैलेंस में वापस कर दिए गए हैं।\n💳 बैलेंस: <b>{bal} USDT</b>",
+    "btn_ref": "👥 रेफ़र",
+    "btn_guide": "📖 गाइड",
+    "btn_share": "📤 मेरा लिंक शेयर करें",
+    "btn_back_guide": "⬅️ गाइड पर वापस",
+    "gb_join": "🎟 शामिल कैसे हों",
+    "gb_draw": "🎲 विजेता कैसे चुने जाते हैं",
+    "gb_prizes": "🏆 लॉटरी और इनाम",
+    "gb_money": "💰 बैलेंस और निकासी",
+    "gb_refer": "👥 रेफ़र करें और कमाएँ",
+    "gb_faq": "❓ अक्सर पूछे जाने वाले प्रश्न",
+    "ref_page": "👥 <b>रेफ़र करें, कमाएँ</b>\n{sep}\n🔗 <b>आपका निजी लिंक</b>\n<code>{link}</code>\n{sep}\n💸 आपके रेफ़र किए गए यूज़र हर टिकट खरीदें तो आपको मिलेगा टिकट की कीमत का <b>{pct}%</b> — राउंड <b>समाप्त होने के बाद</b> आपके बैलेंस में जुड़ जाएगा।\n\n🎟 क्लासिक टिकट ({fee_a} USDT) → <b>{ca} USDT</b>\n💎 प्रीमियम टिकट ({fee_b} USDT) → <b>{cb} USDT</b>\n{sep}\n📊 <b>आपके आँकड़े</b>\n👥 कुल रेफ़रल: <b>{n}</b>\n💰 कुल कमाई: <b>{income} USDT</b>\n🎟 आपके रेफ़रल द्वारा खरीदे गए टिकट: <b>{tickets}</b>\n⏳ चल रहे राउंड में: <b>{ptk}</b> टिकट (राउंड खत्म होने पर ≈ <b>{pinc} USDT</b>)\n{sep}\n{refnote}",
+    "ref_note": "ℹ️ कमीशन xRocket से भुगतान किए गए टिकटों पर गिना जाता है। जो राउंड बंद होकर रिफ़ंड हो जाता है, उस पर कमीशन नहीं मिलता।",
+    "ref_off": "\n⏸ रेफ़रल बोनस अभी बंद है।",
+    "ref_share_text": "🎰 लकी डाइस लॉटरी — मेरे लिंक से जुड़ें, अपना नंबर चुनें और लाइव डाइस ड्रॉ में USDT जीतें!",
+    "ref_new": "🎉 <b>नया रेफ़रल!</b>\n{name} आपके लिंक से जुड़ा है।",
+    "ref_paid_dm": "💰 <b>रेफ़रल बोनस!</b>\n{tname} • राउंड #{rid} समाप्त हुआ।\n🎟 आपके रेफ़रल द्वारा खरीदे गए टिकट: {tickets}\n➕ <b>{amount} USDT</b> आपके बैलेंस में जोड़ दिए गए हैं।\n💳 बैलेंस: <b>{bal} USDT</b>",
+    "hist_ref": "👥 <b>रेफ़रल बोनस</b> — {tname} • राउंड #{rid}\n   ➕ {amount} USDT\n   🕒 {time}",
+    "guide_menu": "📖 <b>गाइड</b>\n{sep}\nहमारी लॉटरी कैसे काम करती है, सब कुछ यहाँ है। एक विषय चुनें:",
+    "guide_join": "🎟 <b>शामिल कैसे हों</b>\n{sep}\n1️⃣ <b>लॉटरी में शामिल हों</b> दबाएँ और <b>क्लासिक</b> या <b>प्रीमियम</b> चुनें।\n2️⃣ एक खाली लकी नंबर (1–{slots}) चुनें। वह आपके लिए <b>{mins} मिनट</b> रिज़र्व रहेगा।\n3️⃣ <b>xRocket</b> से या अपने <b>बॉट बैलेंस</b> से भुगतान करें।\n4️⃣ चैनल पोस्ट में अपना नाम कैसे दिखे यह चुनें (@username या ID)। <b>इस चरण के बाद ही आपकी एंट्री पूरी होती है।</b>\n\n🎟 आप हर राउंड में अधिकतम <b>{max}</b> टिकट ले सकते हैं — जितने ज़्यादा टिकट, उतना बेहतर मौका।\n⏳ हर राउंड 24 घंटे खुला रहता है।",
+    "guide_draw": "🎲 <b>विजेता कैसे चुने जाते हैं</b>\n{sep}\nजब सभी {slots} नंबर भर जाते हैं और हर खिलाड़ी अपना नाम चुन लेता है, तो चैनल में एक छोटी 1️⃣2️⃣3️⃣ उलटी गिनती आती है। फिर डाइस <b>लाइव</b> रोल होते हैं:\n\n🥇 पहला डाइस → जो नंबर आए वह पहला विजेता\n🥈 दूसरा डाइस → जो नंबर आए वह दूसरा विजेता\n🥉 तीसरा डाइस → जो नंबर आए वह तीसरा विजेता\n\n♻️ एक नंबर दो बार नहीं जीत सकता। वही नंबर दोबारा आए तो डाइस फिर से रोल होता है।\n✅ डाइस Telegram के अपने हैं और {channel} में सबके सामने रोल होते हैं, इसलिए सब कुछ पारदर्शी है।\n⏳ अगर दोनों लॉटरी एक साथ भर जाएँ तो एक के बाद एक ड्रॉ होता है।",
+    "guide_prizes": "🏆 <b>लॉटरी और इनाम</b>\n{sep}\n🎟 <b>क्लासिक</b> — प्रवेश शुल्क <b>{fee_a} USDT</b>\n{prizes_a}\n\n💎 <b>प्रीमियम</b> — प्रवेश शुल्क <b>{fee_b} USDT</b>\n{prizes_b}\n\n🏆 हर राउंड में 3 विजेता। ड्रॉ के तुरंत बाद इनाम आपके बॉट बैलेंस में जुड़ जाता है।\n⌛ अगर राउंड 24 घंटे में नहीं भरता तो बंद हो जाता है और हर टिकट का पैसा आपके बैलेंस में वापस आ जाता है।\n🔁 दोनों लॉटरी साथ-साथ चलती हैं और आप दोनों में शामिल हो सकते हैं।",
+    "guide_money": "💰 <b>बैलेंस और निकासी</b>\n{sep}\n💳 आपके बैलेंस में इनाम, रिफ़ंड और रेफ़रल बोनस रहते हैं।\n🎟 आप इससे टिकट खरीद सकते हैं।\n\n💸 <b>निकासी</b>\nनिकासी दबाएँ, राशि भेजें (न्यूनतम <b>{minwd} USDT</b>, दशमलव के बाद 3 अंक तक) और पुष्टि करें। पैसा आपके xRocket वॉलेट में जाएगा।\n\n📜 <b>लेन-देन</b>\nहर टिकट, जीत, रिफ़ंड, रेफ़रल बोनस और निकासी स्थिति के साथ वहाँ दिखती है:\n🟢 जारी  •  🏁 समाप्त  •  🏆 जीत",
+    "guide_refer": "👥 <b>रेफ़र करें और कमाएँ</b>\n{sep}\n1️⃣ <b>रेफ़र</b> दबाएँ और अपना निजी लिंक कॉपी करें।\n2️⃣ जो दोस्त आपके लिंक से बॉट शुरू करेंगे वे आपके रेफ़रल बनेंगे।\n3️⃣ वे हर टिकट खरीदेंगे तो आपको मिलेगा <b>{pct}%</b> — उस <b>राउंड के समाप्त होने के बाद</b>।\n\n🎟 क्लासिक टिकट → <b>{ca} USDT</b>\n💎 प्रीमियम टिकट → <b>{cb} USDT</b>\n\n📊 रेफ़र पेज पर कुल रेफ़रल, कुल कमाई, रेफ़रल द्वारा खरीदे गए टिकट और अभी चल रहे राउंड के टिकट दिखते हैं।\n{refnote}",
+    "guide_faq": "❓ <b>अक्सर पूछे जाने वाले प्रश्न</b>\n{sep}\n<b>मेरा भुगतान देर से आया?</b>\nअगर इस बीच नंबर किसी और ने ले लिया या राउंड बंद हो गया, तो राशि आपके बैलेंस में जुड़ जाती है।\n\n<b>राउंड नहीं भरा?</b>\n24 घंटे बाद राउंड बंद हो जाता है और हर टिकट का पैसा आपके बैलेंस में लौट आता है।\n\n<b>मैंने नाम नहीं चुना?</b>\n{wait} मिनट बाद अपने आप चुन लिया जाता है (username हो तो @username, नहीं तो ID)।\n\n<b>नतीजे कहाँ देखूँ?</b>\n{channel} चैनल में और आपके लेन-देन पेज पर।\n\n<b>क्या दोनों लॉटरी में खेल सकता हूँ?</b>\nहाँ, क्लासिक और प्रीमियम एक साथ चलती हैं।",
+    "wd_off": "⏸ निकासी थोड़ी देर के लिए रोकी गई है। कृपया बाद में फिर कोशिश करें।",
+    "wd_off_alert": "निकासी थोड़ी देर के लिए रोकी गई है। कृपया बाद में फिर कोशिश करें।",
+    "wd_review": "🔍 <b>निकासी की जाँच चल रही है</b>\nआपकी सुरक्षा के लिए इस निकासी को एडमिन एक बार खुद जाँचेंगे। फ़ैसला होते ही आपको बता दिया जाएगा — दोबारा भेजने की ज़रूरत नहीं है।",
+    "wd_review_exists": "🔍 आपकी एक निकासी पहले से जाँच के इंतज़ार में है। कृपया एडमिन के फ़ैसले का इंतज़ार करें।",
+    "wd_approved": "✅ एडमिन ने आपकी निकासी मंज़ूर कर दी है।",
+    "wd_rejected": "❌ आपका निकासी अनुरोध मंज़ूर नहीं हुआ और आपका बैलेंस पहले जैसा ही है। अगर आपको कोई गलती लगती है तो एडमिन से संपर्क करें।",
+    "banned": "🚫 <b>आपका अकाउंट प्रतिबंधित कर दिया गया है</b>\nआप अभी यह बॉट इस्तेमाल नहीं कर सकते। अगर आपको कोई गलती लगती है तो एडमिन से संपर्क करें।",
+    "banned_alert": "🚫 आपका अकाउंट प्रतिबंधित है। एडमिन से संपर्क करें।",
+    "strike_blocked": "⛔ <b>शामिल होना अस्थायी रूप से बंद</b>\nआपने लगातार {n} बार नंबर रिज़र्व करके भुगतान नहीं किया। इसलिए <b>{hours} घंटे</b> के लिए लॉटरी में शामिल होना बंद रहेगा। आपका बैलेंस, निकासी और मेनू पहले की तरह काम करेंगे।",
+    "join_blocked": "⛔ <b>आपके लिए शामिल होना अस्थायी रूप से बंद है</b>\nआपने लगातार कई बार नंबर रिज़र्व करके भुगतान नहीं किया। <b>{left}</b> बाद आप फिर शामिल हो सकेंगे। आपका बैलेंस, निकासी और मेनू पहले की तरह काम करेंगे।",
+    "ban_dm": "🚫 <b>आपका अकाउंट प्रतिबंधित कर दिया गया है</b>\nअब आप यह बॉट इस्तेमाल नहीं कर सकते। अगर आपको कोई गलती लगती है तो एडमिन से संपर्क करें।",
+    "unban_dm": "✅ <b>आपका अकाउंट फिर से चालू हो गया है</b>\nप्रतिबंध हटा दिया गया है। आप पहले की तरह बॉट इस्तेमाल कर सकते हैं। जारी रखने के लिए /menu दबाएँ।",
+    "strike_warn": "⚠️ <b>चेतावनी</b>\nआपने लगातार <b>{n}</b> बार नंबर रिज़र्व करके भुगतान नहीं किया है।\nअगर ऐसा <b>एक बार और</b> हुआ तो <b>{hours} घंटे</b> के लिए लॉटरी में शामिल होना बंद हो जाएगा।\n\nनंबर तभी रिज़र्व करें जब आप अभी भुगतान करने के लिए तैयार हों। जारी रखें?",
+}
+
+TEXT["zh"] = TEXT_ZH
+TEXT["hi"] = TEXT_HI
+
 
 state = {}  # filled by init_state() once the database is connected
 state_dirty = threading.Event()
@@ -435,6 +718,9 @@ def fill_defaults(data):
     data.setdefault("approvals", {})
     data.setdefault("approval_counter", 0)
     data.setdefault("wd_enabled", True)
+    data.setdefault("daily", {})      # per-day counters for the daily report (Bangladesh dates)
+    data.setdefault("images", {})     # lottery pictures: {"A": file_id, "B": file_id}
+    data.setdefault("last_report", None)
     return data
 
 
@@ -641,9 +927,17 @@ def prizes_line_r(r):
     return " • ".join(f"{MEDALS[i]} {money(p)}" for i, p in enumerate(prizes_of(r)))
 
 
+def tier_name(tier, lang="en"):
+    names = cfg(tier)["name"]
+    return names.get(lang) or names["en"]
+
+
 def tier_label(tier, lang="en"):
-    c = cfg(tier)
-    return f"{c['emoji']} {c['name'][lang]}"
+    return f"{cfg(tier)['emoji']} {tier_name(tier, lang)}"
+
+
+def tier_image(tier):
+    return (state.get("images") or {}).get(tier)
 
 
 def prizes_line(tier):
@@ -661,7 +955,8 @@ def user_rec(uid):
 
 
 def lang_of(uid):
-    return state["users"].get(str(uid), {}).get("lang") or "en"
+    code = state["users"].get(str(uid), {}).get("lang") or "en"
+    return code if code in TEXT else "en"
 
 
 def ref_percent():
@@ -707,7 +1002,7 @@ def t(user_id, key, **kw):
     kw.setdefault("wait", DISPLAY_CHOICE_SECONDS // 60)
     kw.setdefault("minwd", money(MIN_WITHDRAW))
     kw.setdefault("channel", CHANNEL)
-    template = TEXT[lang][key]
+    template = TEXT[lang].get(key) or TEXT["en"][key]
     try:
         return template.format(**kw)
     except (KeyError, IndexError):
@@ -775,12 +1070,41 @@ def stat_add(key, value):
         stats[key] = int(stats.get(key, 0)) + value
 
 
+def bdt_day(ts=None):
+    return datetime.fromtimestamp(time.time() if ts is None else ts, BDT).strftime("%Y-%m-%d")
+
+
+def day_add(key, value=1):
+    """Adds to today's (Bangladesh date) counter used by the daily report."""
+    with lock:
+        d = state.setdefault("daily", {}).setdefault(bdt_day(), {})
+        if isinstance(value, Decimal):
+            d[key] = money(Decimal(str(d.get(key, "0"))) + value)
+        else:
+            d[key] = int(d.get(key, 0)) + value
+        save_state()
+
+
+def day_user(key, uid, value=1):
+    """Same, but kept per user (for example withdrawals per user)."""
+    with lock:
+        m = state.setdefault("daily", {}).setdefault(bdt_day(), {}).setdefault(key, {})
+        k = str(uid)
+        if isinstance(value, Decimal):
+            m[k] = money(Decimal(str(m.get(k, "0"))) + value)
+        else:
+            m[k] = int(m.get(k, 0)) + value
+        save_state()
+
+
 def ensure_user(tg_user):
     with lock:
         is_new = str(tg_user.id) not in state["users"]
         rec = user_rec(tg_user.id)
         name = tg_user.first_name or ""
         username = tg_user.username or ""
+        if is_new:
+            day_add("new_users")
         if is_new or rec.get("name") != name or rec.get("username") != username:
             rec["name"] = name
             rec["username"] = username
@@ -824,6 +1148,7 @@ def add_strike(uid):
         count = rec["strikes"]
         rec["strikes"] = 0
         rec["join_block_until"] = time.time() + JOIN_BLOCK_HOURS * 3600
+        day_add("strike_blocks")
         notices.append((uid, t(uid, "strike_blocked", n=count, hours=JOIN_BLOCK_HOURS)))
         notices.append(
             (
@@ -844,9 +1169,8 @@ def send_notices():
 
 
 def fmt_time(ts, lang="en"):
-    if lang == "bn":
-        return datetime.fromtimestamp(ts, BDT).strftime("%d %b %Y, %I:%M %p") + " (BDT)"
-    return datetime.fromtimestamp(ts, UTC).strftime("%d %b %Y, %I:%M %p") + " (UTC)"
+    tz, label = LANG_TZ.get(lang, LANG_TZ["en"])
+    return datetime.fromtimestamp(ts, tz).strftime("%d %b %Y, %I:%M %p") + f" ({label})"
 
 
 def short_time(text, lang="en"):
@@ -854,9 +1178,8 @@ def short_time(text, lang="en"):
         dt = datetime.strptime(text, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
     except ValueError:
         return text
-    if lang == "bn":
-        return dt.astimezone(BDT).strftime("%d %b, %I:%M %p") + " (BDT)"
-    return dt.strftime("%d %b, %I:%M %p") + " (UTC)"
+    tz, label = LANG_TZ.get(lang, LANG_TZ["en"])
+    return dt.astimezone(tz).strftime("%d %b, %I:%M %p") + f" ({label})"
 
 
 def find_usdt(obj):
@@ -1118,7 +1441,11 @@ def refresh_post(r):
     if post_cache.get(r["id"]) == text:
         return
     try:
-        bot.edit_message_text(text, CHANNEL, r["message_id"], parse_mode="HTML", reply_markup=markup)
+        if r.get("photo"):
+            cap, mode = fit_caption(text)
+            bot.edit_message_caption(caption=cap, chat_id=CHANNEL, message_id=r["message_id"], parse_mode=mode, reply_markup=markup)
+        else:
+            bot.edit_message_text(text, CHANNEL, r["message_id"], parse_mode="HTML", reply_markup=markup)
         post_cache[r["id"]] = text
     except ApiTelegramException as e:
         if "message is not modified" in str(e):
@@ -1137,13 +1464,25 @@ def publish_round(r, force=False):
     publish_state[key] = now
     with lock:
         text, markup = render(r)
-    try:
-        msg = bot.send_message(CHANNEL, text, parse_mode="HTML", reply_markup=markup)
-    except Exception as e:
-        print("Could not post to the channel (is the bot an admin?):", e)
-        return
+    msg = None
+    is_photo = False
+    file_id = tier_image(key)
+    if file_id:
+        try:
+            msg = chan_photo(file_id, text, markup)
+            is_photo = True
+        except Exception as e:
+            print("Could not post the lottery picture, posting text instead:", e)
+            safe_send(ADMIN_ID, "⚠️ The lottery picture could not be posted, so a text post was used. Check it with /images and set it again with /setimage.")
+    if msg is None:
+        try:
+            msg = bot.send_message(CHANNEL, text, parse_mode="HTML", reply_markup=markup)
+        except Exception as e:
+            print("Could not post to the channel (is the bot an admin?):", e)
+            return
     with lock:
         r["message_id"] = msg.message_id
+        r["photo"] = is_photo
         save_state()
     post_cache[r["id"]] = text
     pin_round(r)
@@ -1276,7 +1615,15 @@ def maybe_remind(r):
     kb = types.InlineKeyboardMarkup()
     kb.add(types.InlineKeyboardButton("🎟 Join Now", url=join_url(tier)))
     try:
-        msg = chan_send(text, kb, reply_to=r.get("message_id"))
+        msg = None
+        file_id = tier_image(tier)
+        if file_id:
+            try:
+                msg = chan_photo(file_id, text, kb, reply_to=r.get("message_id"))
+            except Exception as e:
+                print("reminder picture error (text used instead):", e)
+        if msg is None:
+            msg = chan_send(text, kb, reply_to=r.get("message_id"))
     except Exception as e:
         print("reminder error:", e)
         with lock:
@@ -1309,6 +1656,16 @@ def safe_send(chat_id, text, markup=None):
         bot.send_message(chat_id, text, parse_mode="HTML", reply_markup=markup)
     except Exception as e:
         print("send error:", chat_id, e)
+
+
+def try_send(chat_id, text, markup=None):
+    """Like safe_send, but tells whether the message was delivered."""
+    try:
+        bot.send_message(chat_id, text, parse_mode="HTML", reply_markup=markup)
+        return True
+    except Exception as e:
+        print("send error:", chat_id, e)
+        return False
 
 
 def edit_or_send(chat_id, message_id, text, markup=None):
@@ -1353,6 +1710,8 @@ def confirm_entry_locked(r, num, uid, persist=True, via="balance"):
         "ref_pct": state.get("ref_percent", "0"),
     }
     stat_add("tickets", 1)
+    day_add(f"tickets_{tier_of(r)}_{'x' if via == 'xrocket' else 'bal'}")
+    day_user("players", uid, 1)
     if len(r["entries"]) >= SLOTS and r["status"] == "open":
         r["status"] = "drawing"
         r["full_at"] = now
@@ -1397,6 +1756,7 @@ def handle_paid(invoice_id):
         num = inv["number"]
         r = state["rounds"].get(str(inv["round_id"]))
         fee = Decimal(inv["fee"]) if inv.get("fee") else fee_of(r)
+        day_add("money_in", fee)
         if r and r["status"] == "open" and time.time() < r["ends"]:
             release_expired(r)
             res = r["reserved"].get(str(num))
@@ -1414,6 +1774,7 @@ def handle_paid(invoice_id):
             )
         else:
             add_balance(uid, fee, "late_refund", f"invoice {invoice_id}")
+            day_add("late_refunds")
         # The invoice is removed only after everything above succeeded,
         # and entry + removal are written to disk together.
         state["invoices"].pop(invoice_id, None)
@@ -1453,6 +1814,8 @@ def close_round(r):
         r["status"] = "closed"
         r["reserved"] = {}
         stat_add("closed", 1)
+        day_add(f"closed_{tier}")
+        day_add("refunds", fee * len(r["entries"]))
         save_state()
     refresh_post(r)
     unpin_round(r)
@@ -1478,6 +1841,25 @@ def chan_send(text, markup=None, reply_to=None):
         return bot.send_message(CHANNEL, text, parse_mode="HTML", reply_markup=markup, **chan_reply_kwargs(reply_to))
     except TypeError:
         return bot.send_message(CHANNEL, text, parse_mode="HTML", reply_markup=markup)
+
+
+def fit_caption(text):
+    """A photo caption may hold 1024 characters. Longer text is sent as plain text, shortened."""
+    if len(text) <= 1024:
+        return text, "HTML"
+    plain = html.unescape(re.sub(r"<[^>]+>", "", text))
+    return plain[:1020] + "...", None
+
+
+def chan_photo(file_id, caption, markup=None, reply_to=None):
+    """Post a picture with a caption to the channel (optionally as a reply to the main post)."""
+    caption, mode = fit_caption(caption)
+    try:
+        return bot.send_photo(
+            CHANNEL, file_id, caption=caption, parse_mode=mode, reply_markup=markup, **chan_reply_kwargs(reply_to)
+        )
+    except TypeError:
+        return bot.send_photo(CHANNEL, file_id, caption=caption, parse_mode=mode, reply_markup=markup)
 
 
 def chan_dice(reply_to=None):
@@ -1535,7 +1917,13 @@ def finish_round(r):
         r["status"] = "finished"
         stat_add("finished", 1)
         stat_add("fees", house_of(r))
-        stat_add("prizes", sum((Decimal(w["prize"]) for w in r["winners"]), Decimal("0")))
+        prize_total = sum((Decimal(w["prize"]) for w in r["winners"]), Decimal("0"))
+        stat_add("prizes", prize_total)
+        day_add(f"games_{tier}")
+        day_add("fees", house_of(r))
+        day_add("prizes", prize_total)
+        for w in r["winners"]:
+            day_user("winners", w["user_id"], Decimal(w["prize"]))
         ref_dms = settle_referrals(r)
         save_state()
         text = result_text(r)
@@ -1761,6 +2149,9 @@ def prune_rounds():
         for k in ids[KEEP_ROUNDS:]:
             if str(k) not in keep and state["rounds"][str(k)]["status"] in ("finished", "closed"):
                 del state["rounds"][str(k)]
+        cutoff = (datetime.now(BDT) - timedelta(days=90)).strftime("%Y-%m-%d")
+        for k in [k for k in state.get("daily", {}) if k < cutoff]:
+            del state["daily"][k]
         save_state()
 
 
@@ -1814,8 +2205,10 @@ def resolve_payout(client_id, status):
         amount = Decimal(info["amount"])
         if status == "failed":
             add_balance(uid, amount, "withdraw_refund", client_id)
+            day_add("wd_failed")
         else:
             stat_add("withdrawn", amount)
+            day_user("wd_done", uid, amount)
         save_state()
         left = balance(uid)
     if status == "finished":
@@ -1959,6 +2352,10 @@ def admin_loop():
     while True:
         try:
             now = time.time()
+            try:
+                maybe_send_daily_report()
+            except Exception as e:
+                print("daily report error:", e)
             if now - last_check >= SOLVENCY_INTERVAL:
                 last_check = now
                 check_solvency()
@@ -2002,6 +2399,7 @@ def admin_text():
         f"💸 Withdrawn: {stats.get('withdrawn', '0.00')} USDT\n"
         f"👥 Referral: {fmt_pct(ref_percent())}%  •  paid {stats.get('ref_paid', '0.00')} USDT\n"
         f"💳 Withdrawals: {'ON' if state.get('wd_enabled', True) else 'OFF'}  •  ⏳ Reviews waiting: {len(state.get('approvals', {}))}\n"
+        f"🖼 Pictures: " + "  •  ".join(f"{tier_label(t_)} {'✅' if tier_image(t_) else '—'}" for t_ in TIER_ORDER) + "\n"
         f"{SEP}\n"
         f"🧾 User balances owed: <b>{money(liability)} USDT</b>\n"
         f"🏦 xRocket app balance: <b>{bal_text}</b>\n"
@@ -2026,6 +2424,14 @@ def admin_markup():
     kb.row(
         types.InlineKeyboardButton("➖ Ref 0.5%", callback_data="ad:refdown"),
         types.InlineKeyboardButton("➕ Ref 0.5%", callback_data="ad:refup"),
+    )
+    kb.row(
+        types.InlineKeyboardButton("📣 Broadcast", callback_data="ad:bc"),
+        types.InlineKeyboardButton("🖼 Images", callback_data="ad:images"),
+    )
+    kb.row(
+        types.InlineKeyboardButton("📊 Today's report", callback_data="ad:report"),
+        types.InlineKeyboardButton("📖 How to use bot", callback_data="ad:howto"),
     )
     return kb
 
@@ -2131,13 +2537,31 @@ def user_details(uid):
 
 
 def set_ban(uid, flag):
+    """Returns None (unknown user), "same" (nothing changed), "done" or "undelivered".
+    The user is told about every real change (banned users still receive notifications)."""
     with lock:
         rec = state["users"].get(str(uid))
         if not rec:
-            return False
-        rec["banned"] = flag
+            return None
+        if bool(rec.get("banned")) == bool(flag):
+            return "same"
+        rec["banned"] = bool(flag)
+        day_add("bans" if flag else "unbans")
         save_state()
-    return True
+    delivered = try_send(uid, t(uid, "ban_dm" if flag else "unban_dm"), None if flag else menu_markup(uid))
+    return "done" if delivered else "undelivered"
+
+
+def ban_result_text(res, flag):
+    if res is None:
+        return "User not found."
+    word = "banned" if flag else "unbanned"
+    icon = "🚫" if flag else "✅"
+    if res == "same":
+        return f"Already {word}. Nothing changed."
+    if res == "undelivered":
+        return f"{icon} User {word}. ⚠️ The notification could NOT be delivered (the user may have blocked the bot)."
+    return f"{icon} User {word}. The user was notified."
 
 
 @bot.message_handler(commands=["user"])
@@ -2162,28 +2586,26 @@ def on_ban_button(call):
         return
     _, action, raw = call.data.split(":")
     uid = int(raw)
-    if not set_ban(uid, action == "ban"):
+    res = set_ban(uid, action == "ban")
+    if res is None:
         ack(call, "User not found.", True)
         return
-    ack(call, "🚫 Banned" if action == "ban" else "✅ Unbanned")
+    ack(call, ban_result_text(res, action == "ban"), True)
     details = user_details(uid)
     if details:
         edit_or_send(call.message.chat.id, call.message.message_id, details[0], details[1])
 
 
-@bot.message_handler(commands=["block", "unblock"])
+@bot.message_handler(commands=["block", "unblock", "ban", "unban"])
 def on_block_command(message):
     if message.chat.type != "private" or not is_admin(message.from_user.id):
         return
     parts = (message.text or "").split()
     if len(parts) < 2 or not parts[1].isdigit():
-        safe_send(message.chat.id, "Usage: /block 123456789  or  /unblock 123456789")
+        safe_send(message.chat.id, "Usage: /ban 123456789  or  /unban 123456789")
         return
-    block = parts[0].startswith("/block")
-    if set_ban(int(parts[1]), block):
-        safe_send(message.chat.id, "🚫 User banned." if block else "✅ User unbanned.")
-    else:
-        safe_send(message.chat.id, "User not found.")
+    block = parts[0].startswith(("/block", "/ban"))
+    safe_send(message.chat.id, ban_result_text(set_ban(int(parts[1]), block), block))
 
 
 @bot.message_handler(commands=["wd_off", "wd_on"])
@@ -2204,6 +2626,19 @@ def on_admin_cb(call):
         return
     action = call.data.split(":", 1)[1]
     ack(call)
+    if action == "bc":
+        start_broadcast_flow(call.message.chat.id)
+        return
+    if action == "images":
+        show_images(call.message.chat.id)
+        return
+    if action == "report":
+        if not send_report(bdt_day(), partial=True):
+            safe_send(call.message.chat.id, "❌ Could not send the report.")
+        return
+    if action == "howto":
+        show_howto(call.message.chat.id, call.message.message_id)
+        return
     if action == "pause":
         with lock:
             state["paused"] = not state.get("paused", False)
@@ -2224,12 +2659,561 @@ def on_admin_cb(call):
     edit_or_send(call.message.chat.id, call.message.message_id, admin_text(), admin_markup())
 
 
-def lang_markup():
+# =====================================================================
+# Admin tools: lottery pictures, broadcast, daily report, "How to use bot"
+# =====================================================================
+IMG_KEYS = {"classic": "A", "a": "A", "premium": "B", "b": "B"}
+BROADCAST_DELAY = 0.05  # seconds between messages (about 20 per second, below Telegram's limit)
+bc = {"running": False, "draft": None}
+report_retry = {"at": 0.0}
+
+
+def parse_tier_arg(text):
+    parts = (text or "").split()
+    if len(parts) < 2:
+        return None
+    return IMG_KEYS.get(parts[1].strip().lower())
+
+
+def do_setimage(message, arg_text, photo_msg):
+    chat = message.chat.id
+    tier = parse_tier_arg(arg_text)
+    if tier is None:
+        safe_send(chat, "Usage: send a photo with the caption <code>/setimage classic</code> or <code>/setimage premium</code>.")
+        return
+    photos = getattr(photo_msg, "photo", None) if photo_msg is not None else None
+    if not photos:
+        if photo_msg is not None and getattr(photo_msg, "document", None):
+            safe_send(chat, "❌ Please send it as a normal <b>photo</b> (not 'as file') and write the command in the caption.")
+        else:
+            safe_send(chat, "❌ No photo found. Send a photo with the caption /setimage classic (or premium), or reply to a photo with the command.")
+        return
+    file_id = photos[-1].file_id
+    with lock:
+        state.setdefault("images", {})[tier] = file_id
+        save_state()
+    try:
+        bot.send_photo(
+            chat,
+            file_id,
+            caption=f"✅ {tier_label(tier)} picture saved.\nIt is used from the next round: main post + reminders.",
+        )
+    except Exception as e:
+        safe_send(chat, f"✅ Saved, but I could not show it: {html.escape(str(e))}")
+
+
+def photo_cmd_filter(m):
+    return (getattr(m, "caption", None) or "").strip().lower().startswith("/setimage")
+
+
+@bot.message_handler(content_types=["photo", "document"], func=photo_cmd_filter)
+def on_setimage_photo(message):
+    if message.chat.type != "private" or not is_admin(message.from_user.id):
+        return
+    do_setimage(message, message.caption, message)
+
+
+@bot.message_handler(commands=["setimage"])
+def on_setimage_text(message):
+    if message.chat.type != "private" or not is_admin(message.from_user.id):
+        return
+    do_setimage(message, message.text, getattr(message, "reply_to_message", None))
+
+
+@bot.message_handler(commands=["delimage"])
+def on_delimage(message):
+    if message.chat.type != "private" or not is_admin(message.from_user.id):
+        return
+    tier = parse_tier_arg(message.text)
+    if tier is None:
+        safe_send(message.chat.id, "Usage: /delimage classic  or  /delimage premium")
+        return
+    with lock:
+        had = bool((state.get("images") or {}).pop(tier, None))
+        save_state()
+    safe_send(
+        message.chat.id,
+        f"🗑 {tier_label(tier)} picture removed. New rounds will be text posts." if had else f"{tier_label(tier)} had no picture.",
+    )
+
+
+def show_images(chat_id):
+    for tier in TIER_ORDER:
+        file_id = tier_image(tier)
+        if file_id:
+            try:
+                bot.send_photo(chat_id, file_id, caption=f"{tier_label(tier)} — current picture")
+                continue
+            except Exception as e:
+                safe_send(chat_id, f"{tier_label(tier)} — picture is set but cannot be shown: {html.escape(str(e))}")
+                continue
+        safe_send(chat_id, f"{tier_label(tier)} — no picture set (text post).")
+    safe_send(
+        chat_id,
+        "🖼 <b>How to set or change a picture</b>\n"
+        "Send the picture to this bot as a normal photo and write <code>/setimage classic</code> or "
+        "<code>/setimage premium</code> in the caption.\n"
+        "Remove with /delimage classic or /delimage premium.\n"
+        "It is used from the next round (main post + reminders).",
+    )
+
+
+@bot.message_handler(commands=["images"])
+def on_images(message):
+    if message.chat.type != "private" or not is_admin(message.from_user.id):
+        return
+    show_images(message.chat.id)
+
+
+# ---------------------------------------------------------------- broadcast
+def start_broadcast_flow(chat_id):
+    if bc["running"]:
+        safe_send(chat_id, "⏳ A broadcast is still being sent. Please wait until it finishes.")
+        return
+    msg = bot.send_message(
+        chat_id,
+        "📣 <b>New broadcast</b>\n"
+        f"{SEP}\n"
+        "Send the message now:\n"
+        "• plain text (bold, italic and links work), or\n"
+        "• a photo with a caption (caption max 1024 characters).\n\n"
+        "It will go to <b>ALL users, banned ones too</b>. You will see a preview first.\n"
+        "Send /cancel to stop.",
+        parse_mode="HTML",
+    )
+    bot.register_next_step_handler(msg, receive_broadcast)
+
+
+def send_broadcast_item(chat_id, item):
+    if item["kind"] == "photo":
+        bot.send_photo(chat_id, item["file_id"], caption=item["caption"] or None, parse_mode="HTML")
+    else:
+        bot.send_message(chat_id, item["text"], parse_mode="HTML")
+
+
+def receive_broadcast(message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    chat_id = message.chat.id
+    ctype = getattr(message, "content_type", "text")
+    text = (getattr(message, "text", None) or "").strip()
+    if ctype == "text" and text.startswith("/"):
+        safe_send(chat_id, "❎ Broadcast cancelled.")
+        return
+    if ctype == "text" and text:
+        item = {"kind": "text", "text": getattr(message, "html_text", None) or text}
+        if len(item["text"]) > 4000:
+            safe_send(chat_id, "❌ Too long (max 4000 characters). Send a shorter text, or /cancel.")
+            bot.register_next_step_handler(message, receive_broadcast)
+            return
+    elif ctype == "photo" and getattr(message, "photo", None):
+        caption = getattr(message, "html_caption", None) or getattr(message, "caption", None) or ""
+        if len(caption) > 1000:
+            safe_send(chat_id, "❌ The caption is too long (max 1024 characters). Send it again, or /cancel.")
+            bot.register_next_step_handler(message, receive_broadcast)
+            return
+        item = {"kind": "photo", "file_id": message.photo[-1].file_id, "caption": caption}
+    else:
+        safe_send(chat_id, "❌ Only text or a photo (with caption) can be broadcast. Send it again, or /cancel.")
+        bot.register_next_step_handler(message, receive_broadcast)
+        return
+    try:
+        send_broadcast_item(chat_id, item)  # the preview: exactly what everyone will get
+    except Exception as e:
+        safe_send(chat_id, f"❌ This message cannot be sent: {html.escape(str(e))}\nFix it and send again with the 📣 button.")
+        return
+    with lock:
+        count = len(state["users"])
+        draft_id = int(time.time() * 1000)
+        bc["draft"] = dict(item, id=draft_id)
     kb = types.InlineKeyboardMarkup()
     kb.row(
-        types.InlineKeyboardButton("English 🇬🇧", callback_data="lg:en"),
-        types.InlineKeyboardButton("বাংলা 🇧🇩", callback_data="lg:bn"),
+        types.InlineKeyboardButton(f"✅ Send to {count} users", callback_data=f"bc:go:{draft_id}"),
+        types.InlineKeyboardButton("❌ Cancel", callback_data=f"bc:no:{draft_id}"),
     )
+    safe_send(
+        chat_id,
+        f"👆 <b>Preview</b>\nReceivers: <b>{count}</b> users (everyone who ever started the bot, banned users included).\nSend it?",
+        kb,
+    )
+
+
+def retry_after(exc):
+    try:
+        return int((getattr(exc, "result_json", None) or {}).get("parameters", {}).get("retry_after") or 0)
+    except (TypeError, ValueError, AttributeError):
+        return 0
+
+
+def broadcast_worker(item, admin_chat):
+    try:
+        with lock:
+            ids = sorted(int(k) for k in state["users"])
+        sent = blocked = failed = 0
+        started = time.time()
+        safe_send(admin_chat, f"📤 Sending to <b>{len(ids)}</b> users... I will send you a report when it is done.")
+        for uid in ids:
+            for _attempt in range(3):
+                try:
+                    send_broadcast_item(uid, item)
+                    sent += 1
+                    break
+                except ApiTelegramException as e:
+                    wait = retry_after(e)
+                    if getattr(e, "error_code", None) == 429 or wait:
+                        time.sleep(min(wait or 5, 60))
+                        continue
+                    if getattr(e, "error_code", None) in (400, 403):
+                        blocked += 1  # the user blocked the bot or deleted the account
+                    else:
+                        failed += 1
+                    break
+                except Exception as e:
+                    print("broadcast error:", uid, e)
+                    failed += 1
+                    break
+            else:
+                failed += 1
+            time.sleep(BROADCAST_DELAY)
+        day_add("broadcasts")
+        secs = int(time.time() - started)
+        safe_send(
+            admin_chat,
+            "✅ <b>Broadcast finished</b>\n"
+            f"{SEP}\n"
+            f"👥 Users: {len(ids)}\n"
+            f"✅ Delivered: <b>{sent}</b>\n"
+            f"🚫 Not delivered (blocked the bot / account gone): {blocked}\n"
+            f"⚠️ Failed for other reasons: {failed}\n"
+            f"⏱ Time: {secs}s",
+        )
+    except Exception as e:
+        print("broadcast worker error:", e)
+        safe_send(admin_chat, f"❌ Broadcast stopped by an error: {html.escape(str(e))}")
+    finally:
+        bc["running"] = False
+
+
+@bot.message_handler(commands=["broadcast"])
+def on_broadcast_cmd(message):
+    if message.chat.type != "private" or not is_admin(message.from_user.id):
+        return
+    start_broadcast_flow(message.chat.id)
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("bc:"))
+def on_broadcast_cb(call):
+    if not is_admin(call.from_user.id):
+        ack(call)
+        return
+    _, action, raw = call.data.split(":")
+    chat_id = call.message.chat.id
+    if action == "no":
+        with lock:
+            if bc["draft"] and str(bc["draft"]["id"]) == raw:
+                bc["draft"] = None
+        clear_markup(call)
+        ack(call, "Cancelled")
+        safe_send(chat_id, "❎ Broadcast cancelled.")
+        return
+    with lock:
+        draft = bc["draft"]
+        if not draft or str(draft["id"]) != raw:
+            problem = "This draft is no longer valid. Create a new broadcast."
+        elif bc["running"]:
+            problem = "A broadcast is already being sent."
+        else:
+            problem = None
+            bc["running"] = True  # set under the lock: a double tap cannot start two sends
+            bc["draft"] = None
+    clear_markup(call)
+    if problem:
+        ack(call, problem, True)
+        return
+    ack(call, "Sending started")
+    threading.Thread(target=broadcast_worker, args=(draft, chat_id), daemon=True).start()
+
+
+# ---------------------------------------------------------------- daily report
+def user_tag(uid):
+    rec = state["users"].get(str(uid), {})
+    uname = rec.get("username")
+    return f"<code>{uid}</code>" + (f" @{html.escape(uname)}" if uname else "")
+
+
+def top_lines(mapping, limit=15, suffix=" USDT"):
+    items = sorted(mapping.items(), key=lambda kv: Decimal(str(kv[1])), reverse=True)
+    lines = [f"   • {user_tag(k)} — <b>{v}{suffix}</b>" for k, v in items[:limit]]
+    if len(items) > limit:
+        lines.append(f"   … and {len(items) - limit} more")
+    return lines
+
+
+def build_daily_report(day, partial=False):
+    app_bal = app_balance()  # network call: outside the lock
+    with lock:
+        d = json.loads(json.dumps(state.get("daily", {}).get(day, {})))
+        users_total = len(state["users"])
+        banned_total = sum(1 for u in state["users"].values() if u.get("banned"))
+        owed = total_liability()
+        pending_wd = len(state["payouts"])
+        reviews = len(state.get("approvals", {}))
+
+        def gi(key):
+            return int(d.get(key, 0))
+
+        def gd(key):
+            return Decimal(str(d.get(key, "0")))
+
+        def gm(key):
+            return d.get(key) or {}
+
+        try:
+            label = datetime.strptime(day, "%Y-%m-%d").strftime("%d %b %Y")
+        except ValueError:
+            label = day
+        games = {t_: gi(f"games_{t_}") for t_ in TIER_ORDER}
+        closed = {t_: gi(f"closed_{t_}") for t_ in TIER_ORDER}
+        tickets_x = {t_: gi(f"tickets_{t_}_x") for t_ in TIER_ORDER}
+        tickets_b = {t_: gi(f"tickets_{t_}_bal") for t_ in TIER_ORDER}
+        ticket_total = sum(tickets_x.values()) + sum(tickets_b.values())
+        fees, prizes, refunds = gd("fees"), gd("prizes"), gd("refunds")
+        ref_paid, money_in = gd("ref_paid"), gd("money_in")
+        net = fees - ref_paid
+        wd_req, wd_done = gm("wd_req"), gm("wd_done")
+        wd_users = sorted(set(wd_req) | set(wd_done), key=lambda k: Decimal(str(wd_req.get(k, wd_done.get(k, "0")))), reverse=True)
+        wd_lines = []
+        for k in wd_users[:15]:
+            wd_lines.append(
+                f"   • {user_tag(k)} — requested <b>{wd_req.get(k, '0.000')}</b> • completed <b>{wd_done.get(k, '0.000')}</b> USDT"
+            )
+        if len(wd_users) > 15:
+            wd_lines.append(f"   … and {len(wd_users) - 15} more")
+        wd_req_total = sum((Decimal(str(v)) for v in wd_req.values()), Decimal("0"))
+        wd_done_total = sum((Decimal(str(v)) for v in wd_done.values()), Decimal("0"))
+        earners = top_lines(gm("ref_earners"))
+        winners = top_lines(gm("winners"))
+        n_earners, n_winners, n_players = len(gm("ref_earners")), len(gm("winners")), len(gm("players"))
+
+    def per_tier(values):
+        return " • ".join(f"{tier_label(t_)}: <b>{values[t_]}</b>" for t_ in TIER_ORDER)
+
+    head = "📊 <b>Daily report</b> — " + label
+    if partial:
+        head += " (so far)"
+    lines = [
+        head,
+        "🕛 Bangladesh time, 12:00 AM – 12:00 AM",
+        SEP,
+        f"🎲 <b>Dice games played:</b> {sum(games.values())}",
+        f"   {per_tier(games)}",
+        f"⌛ Rounds closed (refunded): {sum(closed.values())}  ({per_tier(closed)})",
+        SEP,
+        f"🎟 <b>Tickets sold:</b> {ticket_total}",
+    ]
+    for t_ in TIER_ORDER:
+        lines.append(f"   {tier_label(t_)}: {tickets_x[t_]} paid with xRocket + {tickets_b[t_]} paid with balance")
+    lines += [
+        f"👤 Active players: <b>{n_players}</b>",
+        f"🆕 New users: <b>{gi('new_users')}</b>  •  👥 Total users: {users_total}  •  🚫 Banned: {banned_total}",
+        f"🔗 New referrals: <b>{gi('new_refs')}</b>",
+        SEP,
+        f"💵 <b>Money in via xRocket:</b> {money(money_in)} USDT",
+        f"🏆 Prizes credited: {money(prizes)} USDT",
+        f"↩️ Refunded to balances (closed rounds): {money(refunds)} USDT",
+        f"🏦 Platform fees earned: {money(fees)} USDT",
+        f"🤝 Referral commission paid: {money(ref_paid)} USDT ({n_earners} earners)",
+    ]
+    lines += earners
+    lines += [
+        f"💰 <b>Net income</b> (fees − referral): <b>{money(net)} USDT</b>",
+        SEP,
+        f"🥇 <b>Winners:</b> {n_winners} users",
+    ]
+    lines += winners
+    lines += [
+        SEP,
+        "💸 <b>Withdrawals</b>",
+        f"   Requested: {money(wd_req_total)} USDT • Completed: <b>{money(wd_done_total)} USDT</b> "
+        f"• Failed: {gi('wd_failed')} • Sent to review: {gi('wd_review')}",
+    ]
+    lines += wd_lines or ["   none"]
+    lines += [
+        SEP,
+        f"🛡 Bans: {gi('bans')} • Unbans: {gi('unbans')} • 12h join blocks: {gi('strike_blocks')} • Late-payment refunds: {gi('late_refunds')}",
+        f"📣 Broadcasts sent: {gi('broadcasts')}",
+        SEP,
+        "🧾 <b>Right now</b>",
+        f"   User balances owed: {money(owed)} USDT",
+        f"   xRocket app balance: {money(app_bal) + ' USDT' if app_bal is not None else 'unknown'}",
+        f"   Withdrawals in progress: {pending_wd} • Reviews waiting: {reviews}",
+    ]
+    return "\n".join(lines)
+
+
+def send_long(chat_id, text):
+    """Telegram allows 4096 characters per message: split on line breaks. Returns False if sending failed."""
+    chunks, cur = [], ""
+    for line in text.split("\n"):
+        if len(cur) + len(line) + 1 > 3800 and cur:
+            chunks.append(cur)
+            cur = ""
+        cur += line + "\n"
+    if cur:
+        chunks.append(cur)
+    for chunk in chunks:
+        try:
+            bot.send_message(chat_id, chunk.rstrip("\n"), parse_mode="HTML")
+        except Exception as e:
+            print("report send error:", e)
+            return False
+    return True
+
+
+def send_report(day, partial=False):
+    return send_long(ADMIN_ID, build_daily_report(day, partial))
+
+
+def maybe_send_daily_report():
+    """At 12:00 AM Bangladesh time the previous day's report goes to the admin. Missed days are sent after a restart."""
+    now = time.time()
+    if now < report_retry["at"]:
+        return
+    today = datetime.fromtimestamp(now, BDT).date()
+    with lock:
+        last = state.get("last_report")
+        if not last:
+            state["last_report"] = (today - timedelta(days=1)).isoformat()
+            save_state()
+            return
+        try:
+            last_d = date.fromisoformat(last)
+        except ValueError:
+            last_d = today - timedelta(days=1)
+        start = max(last_d + timedelta(days=1), today - timedelta(days=7))
+        days = []
+        cur = start
+        while cur < today:
+            days.append(cur)
+            cur += timedelta(days=1)
+    for d in days:
+        key = d.isoformat()
+        with lock:
+            has_data = key in state.get("daily", {})
+        if has_data or d == today - timedelta(days=1):
+            if not send_report(key):
+                report_retry["at"] = time.time() + 300
+                return
+        with lock:
+            state["last_report"] = key
+            save_state()
+
+
+@bot.message_handler(commands=["report"])
+def on_report(message):
+    if message.chat.type != "private" or not is_admin(message.from_user.id):
+        return
+    parts = (message.text or "").split()
+    today = bdt_day()
+    day = today
+    if len(parts) > 1:
+        try:
+            day = date.fromisoformat(parts[1]).isoformat()
+        except ValueError:
+            safe_send(message.chat.id, "Usage: /report  (today so far)  or  /report 2026-11-26")
+            return
+    if not send_report(day, partial=(day == today)):
+        safe_send(message.chat.id, "❌ Could not send the report.")
+
+
+# ---------------------------------------------------------------- how to use the bot
+HOWTO = {
+    "en": {
+        "titles": {
+            "panel": "🛠 Panel buttons",
+            "cmds": "⌨️ Commands",
+            "users": "🚫 Users, bans, strikes",
+            "money": "💸 Withdrawals & safety",
+            "media": "🖼 Pictures & broadcast",
+            "auto": "⏰ Automatic things",
+            "menu": "👤 What users see",
+        },
+        "menu": "📖 <b>How to use this bot</b>\n" + SEP + "\nEvery button and command of the admin side, and what it does. Choose a topic:",
+        "panel": "🛠 <b>Admin panel buttons</b>\nOpen the panel with /admin.\n\n🔄 <b>Refresh</b> — reloads the numbers.\n💾 <b>Backup</b> — sends a full JSON backup of all data now (one also arrives every hour).\n📒 <b>Ledger CSV</b> — every balance change of every user as a CSV file.\n⏸ <b>Pause</b> / ▶️ <b>Resume</b> — Pause stops NEW rounds from starting, running rounds finish normally. Resume starts rounds again.\n➖ <b>Ref 0.5%</b> / ➕ <b>Ref 0.5%</b> — lowers / raises the referral commission by 0.5% (range 0–5%). Only tickets bought after the change use the new rate.\n📣 <b>Broadcast</b> — sends one message (text or photo + caption) to ALL users, banned ones too. You see a preview and confirm first.\n🖼 <b>Images</b> — shows the picture of each lottery and how to change it.\n📊 <b>Today's report</b> — today's statistics so far. The full report comes by itself at 12:00 AM Bangladesh time.\n📖 <b>How to use bot</b> — this guide.\n\n<b>Dashboard lines:</b> current rounds, finished / closed rounds, users, tickets, fees, prizes, withdrawn, referral %, withdrawals ON/OFF, reviews waiting, balances owed vs xRocket app balance, Safe / LOW status, pictures.",
+        "cmds": "⌨️ <b>Admin commands</b>\n/admin or /stats — opens the panel.\n/backup — sends a backup file.\n/ledger — sends the ledger CSV.\n/pause · /resume — stop / allow new rounds.\n/refpct 2.5 — sets the referral commission (0–5%). /refpct alone shows it.\n/user 123456789 — user's balance, referral numbers, last transactions, Ban / Unban buttons.\n/ban 123456789 · /unban 123456789 — ban / unban (/block and /unblock do the same). The user gets a message.\n/wd_off · /wd_on — switch ALL withdrawals off / on (emergency stop).\n/payout_ok CLIENT_ID — xRocket does not know a payout and the money WAS sent: mark it done.\n/payout_fail CLIENT_ID — the money was NOT sent: refund the user's balance.\n/setimage classic (or premium) — used in a photo caption, sets the lottery picture.\n/delimage classic (or premium) — removes a picture.\n/images — shows both pictures.\n/broadcast — starts a broadcast.\n/report — today so far; /report 2026-11-26 shows a past day.\n/howto — this guide.",
+        "users": "🚫 <b>Users, bans and strikes</b>\n• <b>Ban</b>: the person can no longer use any button or command; clicking shows 'your account is restricted'. They STILL receive notifications (wins, refunds, withdrawal results, admin messages, broadcasts).\n• When you ban or unban, the user gets a message and you are told whether it was delivered.\n• <b>3-strike rule</b>: reserving a number and not paying is a strike. With 2 strikes, the next time the user picks a number a <b>warning</b> appears (Continue / Cancel). The 3rd unpaid reservation blocks joining for <b>12 hours</b>; balance, withdraw and menu still work. One paid ticket resets the count. You get a message when someone is blocked.\n• /user shows total referrals, referral income, tickets bought by referrals and the last 10 transactions.",
+        "money": "💸 <b>Withdrawals and safety</b>\n• Every withdrawal is checked against the user's history. If the balance is higher than the history explains, nothing is sent: you get a message with <b>Approve / Reject</b>, and the user is told it needs a manual review.\n• ✅ Approve: the withdrawal is sent and the difference is accepted from then on. ❌ Reject: nothing is sent, balance unchanged.\n• Every withdrawal sends you a notice (new / completed / failed) with name, username, ID and time.\n• ⚠️ 'LOW APP BALANCE': user balances + 10% are above your xRocket app balance. Top up xRocket.\n• /wd_off stops all withdrawals at once; /pause only stops new rounds.\n• Payment cancelled or expired: no ticket, no loss. A payment that arrives late is refunded to the user's balance.",
+        "media": "🖼 <b>Pictures and broadcast</b>\n<b>Lottery pictures</b> (one per lottery)\n1. Send the picture to this bot as a normal photo (not 'as file').\n2. Write /setimage classic or /setimage premium as the CAPTION. (Or send the photo first, then reply to it with the command.)\n3. The bot confirms and shows it. It is used from the NEXT round: the main post and the 10 / 20 minute reminders. Running rounds stay as they are.\n• /delimage classic removes it. /images shows what is set.\n• Countdown, duplicate and winner mini-posts and the result post stay text.\n\n<b>Broadcast</b>\n1. Tap 📣 Broadcast (or /broadcast).\n2. Send the text, or a photo with a caption (max 1024 characters). Bold, italic and links work.\n3. The bot shows a preview and the number of receivers. Tap ✅ Send or ❌ Cancel.\n4. It is sent slowly in the background to ALL users, banned ones too. You get a report: delivered / blocked / failed.\n• One broadcast at a time. Do not restart the bot while one is running.",
+        "auto": "⏰ <b>What the bot does by itself</b>\n• <b>Daily report</b> at 12:00 AM Bangladesh time: games, tickets, new users, referrals, withdrawals per user, income and more. If the bot was off at midnight it is sent when the bot is back.\n• <b>Hourly backup</b> file.\n• <b>Balance check</b> every 10 minutes (LOW APP BALANCE alert).\n• <b>Reminder posts</b>: Classic every 10 min, Premium every 20 min; the old one is deleted. With the lottery picture if set.\n• <b>Pin / unpin</b>: the lottery post is pinned while the round runs and unpinned after the result (the bot needs the 'Pin messages' right).\n• <b>Draw</b>: when a round is full and everyone has chosen a name: 1️⃣2️⃣3️⃣ countdown, then 3 live dice. Two full lotteries are drawn one after the other (10 s gap); a new round is posted right after each result.\n• <b>Round closes</b> after 24 h without 6 players: every ticket is refunded to balances.\n• <b>Referral commission</b> is paid after the round finishes, only on tickets paid through xRocket.\n• Data lives in Firebase; only one bot instance is active at a time.",
+        "menu_users": "👤 <b>What users see</b>\n🎟 <b>Join Lottery</b> — open lotteries (Classic / Premium) → pick a number → pay with xRocket or balance → choose how the name appears.\n📜 <b>Transactions</b> — tickets, wins, refunds, referral bonuses, withdrawals with status.\n💸 <b>Withdraw</b> — amount → confirm → sent to the user's xRocket wallet (may need your review).\n🌐 <b>Language</b> — English, বাংলা, 中文, हिन्दी.\n👥 <b>Refer</b> — personal link, commission, statistics.\n📖 <b>Guide</b> — explains everything in the user's language.\n• /start and /menu open the menu.",
+        "back": "⬅️ Back to guide",
+        "panel_btn": "🛠 Admin panel",
+    },
+    "bn": {
+        "titles": {
+            "panel": "🛠 প্যানেলের বাটন",
+            "cmds": "⌨️ কমান্ড",
+            "users": "🚫 ইউজার, ব্যান, স্ট্রাইক",
+            "money": "💸 উইথড্র ও নিরাপত্তা",
+            "media": "🖼 ছবি ও Broadcast",
+            "auto": "⏰ নিজে নিজে যা হয়",
+            "menu": "👤 ইউজার যা দেখে",
+        },
+        "menu": "📖 <b>বট কীভাবে ব্যবহার করবেন</b>\n" + SEP + "\nঅ্যাডমিন সাইডের প্রতিটা বাটন ও কমান্ড কিসের জন্য, কী করলে কী হয় — সব এখানে। একটা বিষয় বাছুন:",
+        "panel": "🛠 <b>অ্যাডমিন প্যানেলের বাটন</b>\n/admin দিলে প্যানেল খোলে।\n\n🔄 <b>Refresh</b> — সংখ্যাগুলো নতুন করে দেখায়।\n💾 <b>Backup</b> — এখনই সব ডেটার পুরো JSON ব্যাকআপ পাঠায় (প্রতি ঘণ্টায় নিজে থেকেও আসে)।\n📒 <b>Ledger CSV</b> — সব ইউজারের প্রতিটা ব্যালেন্স পরিবর্তন CSV ফাইলে।\n⏸ <b>Pause</b> / ▶️ <b>Resume</b> — Pause দিলে নতুন রাউন্ড শুরু হয় না, চলমান রাউন্ড ঠিকমতো শেষ হয়। Resume দিলে আবার নতুন রাউন্ড শুরু হয়।\n➖ <b>Ref 0.5%</b> / ➕ <b>Ref 0.5%</b> — রেফার কমিশন ০.৫% কমায় / বাড়ায় (সীমা ০–৫%)। পরিবর্তনের পর কেনা টিকিটে নতুন হার লাগে।\n📣 <b>Broadcast</b> — সব ইউজারকে (ব্যান করাদেরও) একটা মেসেজ (লেখা বা ছবি + ক্যাপশন) পাঠায়। আগে প্রিভিউ দেখে নিশ্চিত করতে হয়।\n🖼 <b>Images</b> — প্রতিটা লটারির ছবি দেখায় এবং কীভাবে বদলাবেন বলে।\n📊 <b>Today's report</b> — আজকের এখন পর্যন্ত হিসাব। পূর্ণ রিপোর্ট প্রতিদিন বাংলাদেশ সময় রাত ১২টায় নিজে থেকে আসে।\n📖 <b>How to use bot</b> — এই গাইড।\n\n<b>ড্যাশবোর্ডে যা দেখা যায়:</b> চলমান রাউন্ড, শেষ / বন্ধ রাউন্ড, ইউজার, টিকিট, ফি, পুরস্কার, উইথড্র, রেফার %, উইথড্র ON/OFF, অপেক্ষমাণ রিভিউ, ইউজারদের পাওনা বনাম xRocket ব্যালেন্স, Safe / LOW অবস্থা, ছবি।",
+        "cmds": "⌨️ <b>অ্যাডমিন কমান্ড</b>\n/admin বা /stats — প্যানেল খোলে।\n/backup — ব্যাকআপ ফাইল পাঠায়।\n/ledger — লেজার CSV পাঠায়।\n/pause · /resume — নতুন রাউন্ড বন্ধ / চালু।\n/refpct 2.5 — রেফার কমিশন সেট করে (০–৫%)। শুধু /refpct দিলে বর্তমান হার দেখায়।\n/user 123456789 — ইউজারের ব্যালেন্স, রেফার হিসাব, শেষ লেনদেন এবং Ban / Unban বাটন।\n/ban 123456789 · /unban 123456789 — ব্যান / আনব্যান (/block ও /unblock একই কাজ করে)। ইউজার মেসেজ পায়।\n/wd_off · /wd_on — সবার উইথড্র বন্ধ / চালু (জরুরি বন্ধ)।\n/payout_ok CLIENT_ID — xRocket যে উইথড্র চেনে না, কিন্তু টাকা গিয়েছে: সম্পন্ন হিসেবে চিহ্নিত করে।\n/payout_fail CLIENT_ID — টাকা যায়নি: ইউজারের ব্যালেন্সে ফেরত দেয়।\n/setimage classic (বা premium) — ছবির ক্যাপশনে লিখলে লটারির ছবি সেট হয়।\n/delimage classic (বা premium) — ছবি মুছে দেয়।\n/images — দুই ছবি দেখায়।\n/broadcast — Broadcast শুরু করে।\n/report — আজকের এখন পর্যন্ত হিসাব; /report 2026-11-26 দিলে আগের দিনের।\n/howto — এই গাইড।",
+        "users": "🚫 <b>ইউজার, ব্যান ও স্ট্রাইক</b>\n• <b>ব্যান</b>: সে আর কোনো বাটন বা কমান্ড ব্যবহার করতে পারে না; চাপলে 'আপনার অ্যাকাউন্ট সীমাবদ্ধ' দেখায়। কিন্তু নোটিফিকেশন সে এখনো পায় (জয়, রিফান্ড, উইথড্রের ফল, অ্যাডমিনের মেসেজ, Broadcast)।\n• ব্যান বা আনব্যান করলে ইউজার মেসেজ পায়, আর মেসেজ গেছে কি না আপনাকে জানানো হয়।\n• <b>৩ স্ট্রাইক নিয়ম</b>: নম্বর রিজার্ভ করে পেমেন্ট না করলে ১ স্ট্রাইক। ২ স্ট্রাইক হলে পরের বার নম্বর বাছাই করার সময় <b>সতর্কবার্তা</b> আসে (Continue / Cancel)। ৩য় বার পেমেন্ট না করলে <b>১২ ঘণ্টা</b> জয়েন বন্ধ; ব্যালেন্স, উইথড্র ও মেনু চলে। একবার টিকিট কিনলেই গণনা শূন্য হয়। কেউ ব্লক হলে আপনি মেসেজ পান।\n• /user দিলে মোট রেফার, রেফার ইনকাম, রেফারদের কেনা টিকিট এবং শেষ ১০টা লেনদেন দেখা যায়।",
+        "money": "💸 <b>উইথড্র ও নিরাপত্তা</b>\n• প্রতিটা উইথড্র ইউজারের লেনদেনের ইতিহাসের সাথে মেলানো হয়। ব্যালেন্স ইতিহাসের চেয়ে বেশি হলে কিছু পাঠানো হয় না: আপনি <b>Approve / Reject</b> বাটনসহ মেসেজ পান, আর ইউজারকে জানানো হয় ম্যানুয়াল রিভিউ লাগছে।\n• ✅ Approve: উইথড্র পাঠানো হয় এবং ওই পার্থক্য এরপর থেকে মেনে নেওয়া হয়। ❌ Reject: কিছু পাঠানো হয় না, ব্যালেন্স আগের মতো।\n• প্রতিটা উইথড্রে (নতুন / সম্পন্ন / ব্যর্থ) নাম, username, ID ও সময়সহ আপনি নোটিফিকেশন পান।\n• ⚠️ 'LOW APP BALANCE': ইউজারদের মোট পাওনা + ১০% আপনার xRocket ব্যালেন্সের চেয়ে বেশি। xRocket-এ টাকা যোগ করুন।\n• /wd_off দিলে সব উইথড্র একবারে বন্ধ; /pause শুধু নতুন রাউন্ড বন্ধ করে।\n• পেমেন্ট বাতিল বা মেয়াদ শেষ হলে টিকিট হয় না, টাকাও যায় না। দেরিতে আসা পেমেন্ট ইউজারের ব্যালেন্সে ফেরত যায়।",
+        "media": "🖼 <b>ছবি ও Broadcast</b>\n<b>লটারির ছবি</b> (প্রতি লটারির জন্য একটা)\n১. ছবিটা বটকে সাধারণ ফটো হিসেবে পাঠান ('as file' নয়)।\n২. ক্যাপশনে লিখুন /setimage classic অথবা /setimage premium। (অথবা আগে ছবি পাঠিয়ে তাতে Reply করে কমান্ড লিখুন।)\n৩. বট নিশ্চিত করে ছবিটা দেখায়। ছবি <b>পরের রাউন্ড</b> থেকে কাজ করে: মূল পোস্ট এবং ১০ / ২০ মিনিটের রিমাইন্ডারে। চলমান রাউন্ড আগের মতোই থাকে।\n• /delimage classic দিলে ছবি মোছে। /images দিলে কী সেট আছে দেখায়।\n• কাউন্টডাউন, ডুপ্লিকেট ও বিজয়ীর ছোট পোস্ট এবং রেজাল্ট পোস্ট শুধু লেখাই থাকে।\n\n<b>Broadcast</b>\n১. 📣 Broadcast চাপুন (বা /broadcast)।\n২. লেখা, অথবা ছবি + ক্যাপশন পাঠান (ক্যাপশন সর্বোচ্চ ১০২৪ অক্ষর)। বোল্ড, ইটালিক ও লিংক কাজ করে।\n৩. বট প্রিভিউ আর প্রাপকের সংখ্যা দেখায়। ✅ Send বা ❌ Cancel চাপুন।\n৪. ব্যাকআপে ধীরে ধীরে সব ইউজারকে (ব্যান করাদেরও) পাঠায়। শেষে রিপোর্ট পান: পৌঁছেছে / ব্লক / ব্যর্থ।\n• একসাথে একটাই Broadcast চলে। চলার সময় বট রিস্টার্ট করবেন না।",
+        "auto": "⏰ <b>বট নিজে নিজে যা করে</b>\n• <b>দৈনিক রিপোর্ট</b> বাংলাদেশ সময় রাত ১২টায়: গেম, টিকিট, নতুন ইউজার, রেফার, ইউজার অনুযায়ী উইথড্র, আয় ইত্যাদি। রাত ১২টায় বট বন্ধ থাকলে ফিরে এসে পাঠায়।\n• <b>প্রতি ঘণ্টায় ব্যাকআপ</b> ফাইল।\n• <b>ব্যালেন্স চেক</b> প্রতি ১০ মিনিটে (LOW APP BALANCE সতর্কতা)।\n• <b>রিমাইন্ডার পোস্ট</b>: Classic প্রতি ১০ মিনিটে, Premium প্রতি ২০ মিনিটে; পুরনোটা মুছে যায়। ছবি সেট থাকলে ছবিসহ।\n• <b>পিন / আনপিন</b>: রাউন্ড চলার সময় লটারি পোস্ট পিন থাকে, রেজাল্টের পর আনপিন হয় (চ্যানেলে বটের 'Pin messages' অধিকার লাগে)।\n• <b>ড্র</b>: রাউন্ড পূর্ণ হয়ে সবাই নাম বাছাই করলে 1️⃣2️⃣3️⃣ কাউন্টডাউন, তারপর ৩টা লাইভ ডাইস। দুই লটারি একসাথে পূর্ণ হলে একটার পর একটা ড্র হয় (১০ সেকেন্ড বিরতি); প্রতিটা রেজাল্টের পরই নতুন রাউন্ড পোস্ট হয়।\n• <b>রাউন্ড বন্ধ</b>: ২৪ ঘণ্টায় ৬ জন না হলে সব টিকিটের টাকা ব্যালেন্সে ফেরত যায়।\n• <b>রেফার কমিশন</b> রাউন্ড শেষ হওয়ার পর দেওয়া হয়, শুধু xRocket দিয়ে পেমেন্ট করা টিকিটে।\n• ডেটা Firebase-এ থাকে; একসাথে শুধু একটা বট ইনস্ট্যান্স সক্রিয় থাকে।",
+        "menu_users": "👤 <b>ইউজার যা দেখে</b>\n🎟 <b>লটারিতে জয়েন</b> — খোলা লটারি (Classic / Premium) → নম্বর বাছাই → xRocket বা ব্যালেন্সে পেমেন্ট → নাম কীভাবে দেখাবে বাছাই।\n📜 <b>লেনদেন</b> — টিকিট, জয়, রিফান্ড, রেফার বোনাস, উইথড্র স্ট্যাটাসসহ।\n💸 <b>উইথড্র</b> — পরিমাণ → নিশ্চিত → ইউজারের xRocket ওয়ালেটে (আপনার রিভিউ লাগতে পারে)।\n🌐 <b>ভাষা</b> — English, বাংলা, 中文, हिन्दी।\n👥 <b>রেফার</b> — নিজস্ব লিংক, কমিশন, হিসাব।\n📖 <b>গাইড</b> — ইউজারের ভাষায় সবকিছু বুঝিয়ে দেয়।\n• /start ও /menu দিলে মেনু খোলে।",
+        "back": "⬅️ গাইডে ফিরুন",
+        "panel_btn": "🛠 অ্যাডমিন প্যানেল",
+    },
+}
+HOWTO_ORDER = ["panel", "cmds", "users", "money", "media", "auto", "menu"]
+
+
+def show_howto(chat_id, message_id=None, section=None):
+    lang = "bn" if lang_of(ADMIN_ID) == "bn" else "en"
+    pack = HOWTO[lang]
+    kb = types.InlineKeyboardMarkup()
+    if section in HOWTO_ORDER:
+        key = "menu_users" if section == "menu" else section
+        text = pack[key]
+        kb.add(types.InlineKeyboardButton(pack["back"], callback_data="hw:menu"))
+        kb.add(types.InlineKeyboardButton(pack["panel_btn"], callback_data="ad:refresh"))
+    else:
+        text = pack["menu"]
+        buttons = [types.InlineKeyboardButton(pack["titles"][k], callback_data=f"hw:{k}") for k in HOWTO_ORDER]
+        for i in range(0, len(buttons), 2):
+            kb.row(*buttons[i : i + 2])
+        kb.add(types.InlineKeyboardButton(pack["panel_btn"], callback_data="ad:refresh"))
+    edit_or_send(chat_id, message_id, text, kb)
+
+
+@bot.message_handler(commands=["howto"])
+def on_howto(message):
+    if message.chat.type != "private" or not is_admin(message.from_user.id):
+        return
+    show_howto(message.chat.id)
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("hw:"))
+def on_howto_cb(call):
+    if not is_admin(call.from_user.id):
+        ack(call)
+        return
+    ack(call)
+    section = call.data.split(":", 1)[1]
+    show_howto(call.message.chat.id, call.message.message_id, section)
+
+
+def lang_markup():
+    kb = types.InlineKeyboardMarkup()
+    buttons = [types.InlineKeyboardButton(label, callback_data=f"lg:{code}") for code, label in LANGS]
+    for i in range(0, len(buttons), 2):
+        kb.row(*buttons[i : i + 2])
     return kb
 
 
@@ -2393,7 +3377,7 @@ def join_menu(chat_id, uid, message_id=None):
                 rows.append(t(uid, "join_row", tier=r, n=len(r["entries"]), left=time_left(r)))
                 kb.add(
                     types.InlineKeyboardButton(
-                        f"{c['emoji']} {c['name'][lang]} • {money(c['fee'])} USDT", callback_data=f"jt:{tier}"
+                        f"{c['emoji']} {tier_name(tier, lang)} • {money(c['fee'])} USDT", callback_data=f"jt:{tier}"
                     )
                 )
                 active += 1
@@ -2495,6 +3479,7 @@ def register_referral(tg_user, raw):
         if rec.get("ref_by"):
             return
         rec["ref_by"] = ref_id
+        day_add("new_refs")
         save_state()
     safe_send(ref_id, t(ref_id, "ref_new", name=html.escape(tg_user.first_name or "User")))
 
@@ -2520,6 +3505,8 @@ def settle_referrals(r):
             add_balance(ref, item["amount"], "ref_bonus", f"round {r['id']} ref")
             rec["ref_income"] = money(Decimal(rec.get("ref_income", "0")) + item["amount"])
             stat_add("ref_paid", item["amount"])
+            day_add("ref_paid", item["amount"])
+            day_user("ref_earners", ref, item["amount"])
             out[ref] = (item["tickets"], item["amount"], balance(ref))
     return out
 
@@ -2675,7 +3662,7 @@ def on_lang_open(call):
 @bot.callback_query_handler(func=lambda c: c.data.startswith("lg:"))
 def on_lang_set(call):
     code = call.data.split(":", 1)[1]
-    if code not in ("en", "bn"):
+    if code not in TEXT:
         ack(call)
         return
     uid = call.from_user.id
@@ -2732,15 +3719,33 @@ def on_history(call):
     edit_or_send(call.message.chat.id, call.message.message_id, text, kb)
 
 
-@bot.callback_query_handler(func=lambda c: c.data.startswith("pick:"))
+@bot.callback_query_handler(func=lambda c: c.data.startswith("pick:") or c.data.startswith("pw:"))
 def on_pick(call):
-    _, rid, num = call.data.split(":")
+    kind, rid, num = call.data.split(":")
     uid = call.from_user.id
     ensure_user(call.from_user)
     if join_block_left(uid) > 0:
         ack(call)
         show_join_block(call.message.chat.id, uid, call.message.message_id)
         return
+    if kind == "pick":
+        with lock:
+            strikes = int(user_rec(uid).get("strikes", 0))
+        if strikes >= STRIKE_LIMIT - 1:
+            # one more unpaid reservation would block this user: warn first, nothing is reserved yet
+            ack(call)
+            kb = types.InlineKeyboardMarkup()
+            kb.row(
+                types.InlineKeyboardButton(t(uid, "btn_continue"), callback_data=f"pw:{rid}:{num}"),
+                types.InlineKeyboardButton(t(uid, "btn_cancel"), callback_data="join"),
+            )
+            edit_or_send(
+                call.message.chat.id,
+                call.message.message_id,
+                t(uid, "strike_warn", n=strikes, hours=JOIN_BLOCK_HOURS),
+                kb,
+            )
+            return
     problem = None
     with lock:
         r = state["rounds"].get(rid)
@@ -3008,6 +4013,7 @@ def request_review(chat_id, uid, amount, diff, total, bal, rows):
                 "created": time.time(),
                 "diff": money(diff),
             }
+            day_add("wd_review")
             save_state()
         rec = state["users"].get(str(uid), {})
         name = html.escape(rec.get("name", "") or "-")
@@ -3102,6 +4108,7 @@ def start_withdrawal(uid, amount, chat_id):
             menu_markup(uid),
         )
         return "storage_error"
+    day_user("wd_req", uid, amount)
     safe_send(chat_id, t(uid, "wd_processing"))
     notify_admin_withdraw("💸 <b>New withdrawal request</b>", uid, amount, client_id, "Status: sending to xRocket...")
     kind, data = api_create_payout(uid, amount, client_id)
